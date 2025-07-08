@@ -1,7 +1,12 @@
 {
   "name": "cityjson-to-3d-tiles",
   "version": "0.0.1",
-  "description": "",
+  "description": "A Node.js library that converts CityJSON files into Cesium 3D Tiles—complete with automatic texture atlas packing, Basis compression, three LOD levels, and customizable threading.",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/csi-FOXBYTE/cityjson-to-3d-tiles.git"
+  },
+  "homepage": "https://github.com/csi-FOXBYTE/cityjson-to-3d-tiles",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "type": "module",
@@ -11,9 +16,22 @@
     "prepublish": "tsup",
     "prepack": "tsup"
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
+  "keywords": [
+    "cityjson",
+    "3d-tiles",
+    "cesium",
+    "geospatial",
+    "gis",
+    "nodejs",
+    "converter",
+    "lod",
+    "texture-packing",
+    "basis-compression",
+    "tiles",
+    "3d"
+  ],
+  "author": "Tobias Ganzhorn @Foxbyte",
+  "license": "LGPL-3.0-or-later",
   "dependencies": {
     "3d-tiles-tools": "^0.5.0",
     "@gltf-transform/core": "^4.2.0",
