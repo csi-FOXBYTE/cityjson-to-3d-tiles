@@ -2,7 +2,7 @@ import { mkdir, rm, writeFile } from "fs/promises";
 import { Box2, Box3, Vector2, Vector3 } from "three";
 import { Cartographic } from "cesium";
 import { Worker } from "worker_threads";
-import { PromisePool } from "@supercharge/promise-pool";
+import { PromisePool } from "@supercharge/promise-pool/dist/index.js";
 import { Grid2D } from "../grid2d/index.js";
 import type { GridItem, Tile } from "../3dtiles/types.js";
 import { calculateBBoxVolume } from "./calculateBoundingVolume.js";

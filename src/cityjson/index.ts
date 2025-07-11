@@ -1,6 +1,6 @@
 import { Logger } from "@gltf-transform/core";
 import { cloneDocument, textureCompress } from "@gltf-transform/functions";
-import { PromisePool } from "@supercharge/promise-pool";
+import { PromisePool } from "@supercharge/promise-pool/dist/index.js";
 import { readFile } from "fs/promises";
 import { glob } from "glob";
 import path, { join } from "path";
@@ -40,7 +40,7 @@ export async function generateTileDatabaseFromCityJSON(
 
   const dbFilePath = `${outputFolder}\\tmp-db.bin`;
 
-  const database = await createDatabase(dbFilePath, true);
+  const dbInstance = await createDatabase(dbFilePath, true);
 
   const workerPool = new WorkerPool(
     () => new Worker(new URL("./worker.js", import.meta.url)),
@@ -85,7 +85,7 @@ export async function generateTileDatabaseFromCityJSON(
     const templateVertices =
       cityJson["geometry-templates"]?.["vertices-templates"] ?? [];
 
-    const preparedGeometryTemplateInsert = await database.prepare(
+    const preparedGeometryTemplateInsert = await dbInstance.prepare(
       "INSERT INTO instancedData (arrayIndex, srcSRS, doc0, doc1, doc2, id, filePath) VALUES (?, ?, ?, ?, ?, ?, ?)"
     );
 
@@ -100,7 +100,7 @@ export async function generateTileDatabaseFromCityJSON(
         folderPath,
         appearance,
         noTransform: true,
-        dbInstance: database,
+        dbInstance: dbInstance,
       });
 
       if (result.length !== 1) throw new Error("Unexpected!");
@@ -172,7 +172,7 @@ export async function generateTileDatabaseFromCityJSON(
         });
 
         try {
-          const preparedGeometryInsert = await database.prepare(
+          const preparedGeometryInsert = await dbInstance.prepare(
             `INSERT INTO data (name, childrenIds, parentIds, address, attributes, type, bbMinX, bbMinY, bbMinZ, bbMaxX, bbMaxY, bbMaxZ, doc, isInstanced, refId, transformationMatrix) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
           );
 
@@ -201,7 +201,7 @@ export async function generateTileDatabaseFromCityJSON(
 
             await preparedGeometryInsert.run();
 
-            const preparedTextureInsert = await database.prepare(
+            const preparedTextureInsert = await dbInstance.prepare(
               `INSERT INTO textures (img, path) VALUES (?, ?)`
             );
 
@@ -247,5 +247,5 @@ export async function generateTileDatabaseFromCityJSON(
     onProgress(index / files.length);
   }
 
-  return { dbFilePath }
+  return { dbFilePath };
 }

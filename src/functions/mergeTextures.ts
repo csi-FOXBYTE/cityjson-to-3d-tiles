@@ -1,6 +1,9 @@
 import { Document, Primitive, Texture } from "@gltf-transform/core";
 import sharp from "sharp";
-import { MaxRectsPacker, Rectangle } from "maxrects-packer";
+import {
+  MaxRectsPacker,
+  Rectangle,
+} from "maxrects-packer/dist/maxrects-packer.js";
 
 /**
  * Merges base color textures from all materials in a glTF document into one or more texture atlases.
@@ -23,7 +26,7 @@ export async function mergeTextures(
   resizeFactor: number = 1,
   maxResolution = 16384,
   collectTextures = false,
-  pot = true,
+  pot = true
 ) {
   const root = document.getRoot();
 
