@@ -56,9 +56,59 @@ export async function compressBasisUniversal(document: Document) {
         extension: "png",
       });
 
-      const basisu = import.meta
-        .resolve("@gpu-tex-enc/basis/bin/win32-x64/basisu-sse.exe")
-        .replace("file:///", "");
+      const platform = process.platform;
+      const arch = process.arch;
+
+      let basisu: string;
+
+      switch (platform) {
+        case "linux":
+          if (arch === "arm64") {
+            basisu = import.meta
+              .resolve("@gpu-tex-enc/basis/bin/linux-arm64/basisu")
+              .replace("file://", "");
+            break;
+          }
+          if (arch === "x64") {
+            basisu = import.meta
+              .resolve("@gpu-tex-enc/basis/bin/linux-x64/basisu")
+              .replace("file://", "");
+            break;
+          }
+          throw new Error(
+            `No matching basisu bin found for ${platform} ${arch}.`
+          );
+        case "win32":
+          if (arch === "x64") {
+            basisu = import.meta
+              .resolve("@gpu-tex-enc/basis/bin/win32-x64/basisu.exe")
+              .replace("file:///", "");
+            break;
+          }
+          throw new Error(
+            `No matching basisu bin found for ${platform} ${arch}.`
+          );
+        case "darwin":
+          if (arch === "arm64") {
+            basisu = import.meta
+              .resolve("@gpu-tex-enc/basis/bin/darwin-arm64/basisu")
+              .replace("file://", "");
+            break;
+          }
+          if (arch === "x64") {
+            basisu = import.meta
+              .resolve("@gpu-tex-enc/basis/bin/darwin-x64/basisu")
+              .replace("file://", "");
+            break;
+          }
+          throw new Error(
+            `No matching basisu bin found for ${platform} ${arch}.`
+          );
+        default:
+          throw new Error(
+            `No matching basisu bin found for ${platform} ${arch}.`
+          );
+      }
 
       try {
         const output = `${file}.ktx2`;
@@ -76,7 +126,6 @@ export async function compressBasisUniversal(document: Document) {
             "0.75",
             "-q",
             "255",
-            // "-ktx2_no_zstandard",
             "-ktx2",
           ],
           { stdio: ["ignore", "ignore", "inherit"] }
@@ -97,7 +146,8 @@ export async function compressBasisUniversal(document: Document) {
 
         await rm(output);
       } catch (e) {
-        console.error(e);
+        console.error(JSON.stringify(e));
+        throw e;
       }
 
       await rm(file);

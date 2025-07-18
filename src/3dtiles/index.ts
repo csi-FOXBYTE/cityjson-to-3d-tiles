@@ -161,7 +161,9 @@ export async function generate3DTilesFromTileDatabase(
             4
           )
         );
-      } catch (e) {}
+      } catch (e) {
+        console.error(e);
+      }
       index++;
       onProgress(index / grid.cells.length);
     });

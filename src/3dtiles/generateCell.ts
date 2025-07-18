@@ -7,6 +7,7 @@ import { generateDocument } from "./generateDocument.js";
 import { Database } from "sqlite";
 import { generateInstancedDocument } from "./generateInstancedDocument.js";
 import { getIO } from "./io.js";
+import path from "path";
 
 export async function generateCell(
   cells: { data: GridItem; x: number; y: number }[],
@@ -38,7 +39,7 @@ export async function generateCell(
   const newName = crypto.randomUUID();
 
   await writeFile(
-    `${outputFolder}\\${newName}_lod2.glb`,
+    path.join(outputFolder, `${newName}_lod2.glb`),
     Buffer.from(glb_lod2)
   );
 
@@ -129,7 +130,7 @@ export async function generateCell(
     const glb_lod1 = await io.writeBinary(lod1Document.document);
 
     await writeFile(
-      `${outputFolder}\\${newName}_lod1.glb`,
+      path.join(outputFolder, `${newName}_lod1.glb`),
       Buffer.from(glb_lod1)
     );
 
@@ -164,7 +165,7 @@ export async function generateCell(
       const glb_lod0 = await io.writeBinary(docLod0);
 
       await writeFile(
-        `${outputFolder}\\${newName}_lod0.glb`,
+        path.join(outputFolder, `${newName}_lod0.glb`),
         Buffer.from(glb_lod0)
       );
 

@@ -38,7 +38,7 @@ export async function generateTileDatabaseFromCityJSON(
     inputFile: file,
   }));
 
-  const dbFilePath = `${outputFolder}\\tmp-db.bin`;
+  const dbFilePath = path.join(outputFolder, `tmp-db.bin`);
 
   const dbInstance = await createDatabase(dbFilePath, true);
 
