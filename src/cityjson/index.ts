@@ -24,6 +24,7 @@ export async function generateTileDatabaseFromCityJSON(
   onProgress: (progress: number) => void,
   opts: {
     threadCount?: number;
+    srcSRS?: string,
   } = {}
 ) {
   const { threadCount = 4 } = opts;
@@ -74,7 +75,7 @@ export async function generateTileDatabaseFromCityJSON(
       console.error(e);
     }
 
-    lastSrcSRSProj4 ??= srcSrsProj4;
+    lastSrcSRSProj4 ??= srcSrsProj4 ?? opts.srcSRS ?? null;
 
     if (!srcSrsProj4)
       throw new Error("No valid src srs found please provide one!");
