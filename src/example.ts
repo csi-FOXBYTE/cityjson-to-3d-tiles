@@ -3,24 +3,32 @@ import {
   generateTileDatabaseFromCityJSON,
 } from "./index.js";
 
-const inputFolder = "D:\\generator_test\\src";
+const inputFolder = "D:\\generator_test_trees\\src";
 
-const appearance = "rgbTexture";
+const appearance = "FMETheme";
 
-const outputFolder = "D:\\generator_test";
+const outputFolder = "D:\\generator_test_trees";
 
 (async () => {
-  const { dbFilePath } = await generateTileDatabaseFromCityJSON(
-    inputFolder,
-    outputFolder,
-    appearance,
-    console.log,
-    { threadCount: 1 }
-  );
+  // try {
+  //   const { dbFilePath } = await generateTileDatabaseFromCityJSON(
+  //     inputFolder,
+  //     outputFolder,
+  //     appearance,
+  //     console.log,
+  //     { threadCount: 8, srcSRS: "25832" }
+  //   );
+  // } catch (e) {
+  //   console.error(e);
+  // }
+
+  // console.log("ENDED")
+
+  const dbFilePath = "D:\\generator_test_trees\\tmp-db.bin"
 
   await generate3DTilesFromTileDatabase(
     dbFilePath,
-    "D:\\generator_test\\tiles",
+    "D:\\generator_test_trees\\tiles",
     console.log,
     { threadCount: 1 }
   );

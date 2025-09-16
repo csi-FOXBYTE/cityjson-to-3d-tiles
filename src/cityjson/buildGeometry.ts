@@ -245,7 +245,7 @@ export async function buildGeometry({
             .setIndices(indexAccessor)
             .setMode(4);
 
-          if (textureId) {
+          if (textureId !== null) {
             const texturePath = cityJson.appearance?.textures![textureId];
 
             material.setName(texturePath!.image!);

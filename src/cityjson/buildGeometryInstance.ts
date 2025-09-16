@@ -111,14 +111,14 @@ export async function buildGeometryInstance(
   dbInstance: Database
 ): Promise<WorkerWorkReturnType> {
   const queryResult = await dbInstance.get(
-    `SELECT doc2, srcSRS, arrayIndex, id from instancedData WHERE arrayIndex = ?`,
+    `SELECT doc, srcSRS, arrayIndex, id from instancedData WHERE arrayIndex = ?`,
     [part.template]
   );
 
   if (!queryResult)
     throw new Error(`No geometry template found for "${part.template}"!`);
 
-  const document = await io.readBinary(queryResult.doc2);
+  const document = await io.readBinary(queryResult.doc);
 
   const srcSrsProj4 = queryResult.srcSRS;
 
@@ -148,8 +148,11 @@ export async function buildGeometryInstance(
   const originalPoints: [number, number, number][] = [];
   const targetPoints: [number, number, number][] = [];
 
+  const textureSet = new Set<string>();
+
   for (const mesh of root.listMeshes()) {
     for (const primitive of mesh.listPrimitives()) {
+      textureSet.add(primitive.getMaterial()?.getName() ?? "-")
       const array = primitive.getAttribute("POSITION")?.getArray();
 
       if (!array) continue;
@@ -216,7 +219,7 @@ export async function buildGeometryInstance(
       transformationMatrix: transformationMatrix.toArray(),
       isInstanced: true,
       collectedTextures: [],
-      texturePaths: [],
+      texturePaths: Array.from(textureSet),
       serializedDoc: undefined,
     },
   ];

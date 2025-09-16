@@ -1,27 +1,26 @@
-import { Logger, Document } from "@gltf-transform/core";
+import { Document, Logger, NodeIO } from "@gltf-transform/core";
 import {
   dedup,
-  join,
-  flatten,
-  unpartition,
-  prune,
-  mergeDocuments,
-  weld,
-  simplify,
-  meshopt,
   draco,
+  flatten,
+  join,
+  mergeDocuments,
+  prune,
+  simplify,
+  unpartition,
+  weld,
 } from "@gltf-transform/functions";
-import { Box3, Vector3 } from "three";
+import { MeshoptSimplifier } from "meshoptimizer";
+import proj4 from "proj4";
+import { Database } from "sqlite";
+import { Box3, Matrix4, Vector3 } from "three";
 import { assignFeatureIdToTexCoord2 } from "../functions/assignFeatureIdToTexCoord2.js";
 import { assignFeatureIds } from "../functions/assignFeaturesIds.js";
-import { mergeTextures } from "../functions/mergeTextures.js";
-import type { GridItem } from "./types.js";
-import { MeshoptEncoder, MeshoptSimplifier } from "meshoptimizer";
-import proj4 from "proj4";
 import { compressBasisUniversal } from "../functions/compressBasisUniversal.js";
 import { getTextures } from "../functions/getTextures.js";
-import { Database } from "sqlite";
+import { mergeTextures } from "../functions/mergeTextures.js";
 import { getIO } from "./io.js";
+import type { GridItem } from "./types.js";
 
 Logger.DEFAULT_INSTANCE = new Logger(Logger.Verbosity.SILENT);
 
@@ -33,6 +32,48 @@ const cesiumCartesianToCartographicTransform = proj4(
   cesiumCartesian,
   cesiumCartographic
 );
+
+async function getDocument(dbInstance: Database, name: string, io: NodeIO) {
+  const row = await dbInstance.get(
+    `SELECT doc, isInstanced, transformationMatrix, refId FROM data WHERE name = ?`,
+    [name]
+  );
+
+  if (!row) throw new Error(`No CityObject found with name "${name}"`);
+
+  let rowDoc: Buffer;
+
+  if (row.isInstanced) {
+    const instancedRow = await dbInstance.get(
+      `SELECT doc FROM instancedData WHERE id = ?`,
+      [row.refId]
+    );
+
+    rowDoc = instancedRow.doc;
+  } else {
+    rowDoc = row.doc;
+  }
+
+  if (!rowDoc)
+    throw new Error(
+      `CityObject with name "${name}" has no associated document!`
+    );
+
+  const document = await io.readBinary(new Uint8Array(rowDoc));
+
+  if (row.isInstanced) {
+    const transformationMatrix = new Matrix4().fromArray(
+      (row.transformationMatrix as string).split("@").map((a) => parseFloat(a))
+    );
+    document
+      .getRoot()
+      .listScenes()[0]
+      .listChildren()[0]
+      .setMatrix(transformationMatrix.toArray());
+  }
+
+  return document;
+}
 
 function createFilterFn(minVolume?: number) {
   if (!minVolume) return () => true;
@@ -93,24 +134,11 @@ export async function generateDocument(
       document: new Document(),
     };
 
-  const row = await dbInstance.get(
-    `SELECT doc, isInstanced, transformationMatrix, refId FROM data WHERE name = ?`,
-    [filteredCell[0].data.name]
+  const rootDocument = await getDocument(
+    dbInstance,
+    filteredCell[0].data.name,
+    io
   );
-
-  if (!row)
-    throw new Error(
-      `No CityObject found with name "${filteredCell[0].data.name}"`
-    );
-
-  const rowDoc = row.doc;
-
-  if (!rowDoc)
-    throw new Error(
-      `CityObject with name "${filteredCell[0].data.name}" has no associated document!`
-    );
-
-  const rootDocument = await io.readBinary(new Uint8Array(rowDoc));
 
   await getTextures(rootDocument, dbInstance);
 
@@ -118,20 +146,6 @@ export async function generateDocument(
 
   for (let i = 1; i < filteredCell.length; i++) {
     const c = filteredCell[i];
-
-    const row = await dbInstance.get(
-      `SELECT doc, isInstanced, transformationMatrix, refId from data WHERE name = ?`,
-      [c.data.name]
-    );
-
-    if (!row) throw new Error(`No CityObject found with name "${c.data.name}"`);
-
-    const rowDoc = row.doc;
-
-    if (!rowDoc)
-      throw new Error(
-        `CityObject with name "${c.data.name}" has no associated document!`
-      );
 
     localBBox.union(
       new Box3(
@@ -148,7 +162,7 @@ export async function generateDocument(
       )
     );
 
-    const document = await io.readBinary(rowDoc);
+    const document = await getDocument(dbInstance, c.data.name, io);
 
     await getTextures(document, dbInstance);
 
@@ -184,9 +198,7 @@ export async function generateDocument(
       ratio: 0.0,
       error: 0.001,
     }),
-    draco({
-      
-    })
+    draco({})
   );
 
   await compressBasisUniversal(rootDocument);
@@ -196,6 +208,19 @@ export async function generateDocument(
     filteredCell.map((c) => c.data.name),
     filteredCell.map((c) => c.data.attributes)
   );
+
+  rootDocument
+    .getRoot()
+    .listMaterials()
+    .forEach((material) => {
+      if (material.getBaseColorTexture() === null) {
+        material.setAlphaMode("OPAQUE");
+
+        return;
+      }
+
+      material.setAlphaMode("BLEND");
+    });
 
   await rootDocument.transform(prune());
 

@@ -17,8 +17,6 @@ export async function getTextures(document: Document, dbInstance: Database) {
       [materialName]
     );
 
-    
-
     if (!row) throw new Error(`No texture with name "${materialName}" found!`);
 
     const img = await sharp(row.img, { limitInputPixels: false })
@@ -31,6 +29,6 @@ export async function getTextures(document: Document, dbInstance: Database) {
       .setMimeType("image/png");
 
     material.setBaseColorTexture(texture);
-    material.setAlphaMode("BLEND");
+    material.setAlphaMode("MASK");
   }
 }

@@ -24,7 +24,7 @@ export async function generateTileDatabaseFromCityJSON(
   onProgress: (progress: number) => void,
   opts: {
     threadCount?: number;
-    srcSRS?: string,
+    srcSRS?: string;
   } = {}
 ) {
   const { threadCount = 4 } = opts;
@@ -69,13 +69,13 @@ export async function generateTileDatabaseFromCityJSON(
 
     try {
       srcSrsProj4 = convertEPSGFromCityJSONToProj4(
-        cityJson.metadata?.referenceSystem
+        cityJson.metadata?.referenceSystem ?? opts.srcSRS
       );
     } catch (e) {
       console.error(e);
     }
 
-    lastSrcSRSProj4 ??= srcSrsProj4 ?? opts.srcSRS ?? null;
+    lastSrcSRSProj4 ??= srcSrsProj4;
 
     if (!srcSrsProj4)
       throw new Error("No valid src srs found please provide one!");
@@ -87,7 +87,7 @@ export async function generateTileDatabaseFromCityJSON(
       cityJson["geometry-templates"]?.["vertices-templates"] ?? [];
 
     const preparedGeometryTemplateInsert = await dbInstance.prepare(
-      "INSERT INTO instancedData (arrayIndex, srcSRS, doc0, doc1, doc2, id, filePath) VALUES (?, ?, ?, ?, ?, ?, ?)"
+      "INSERT INTO instancedData (arrayIndex, srcSRS, doc, id, filePath) VALUES (?, ?, ?, ?, ?)"
     );
 
     for (let i = 0; i < templates.length; i++) {
@@ -108,38 +108,12 @@ export async function generateTileDatabaseFromCityJSON(
 
       const doc0 = await io.readBinary(result[0].serializedDoc!);
 
-      const doc1 = cloneDocument(doc0);
-
-      await doc1.transform(
-        textureCompress({
-          encoder: sharp,
-          resize: [256, 256],
-        })
-      );
-
-      await compressBasisUniversal(doc1);
-
-      const doc2 = cloneDocument(doc0);
-
-      await doc2.transform(
-        textureCompress({
-          encoder: sharp,
-          resize: [32, 32],
-        })
-      );
-
-      await compressBasisUniversal(doc2);
-
-      await compressBasisUniversal(doc0);
-
       await preparedGeometryTemplateInsert.bind({
         1: i.toString(),
         2: srcSrsProj4,
         3: await io.writeBinary(doc0),
-        4: await io.writeBinary(doc1),
-        5: await io.writeBinary(doc2),
-        6: [crypto.randomUUID(), crypto.randomUUID()].join("-"),
-        7: inputFile,
+        4: [crypto.randomUUID(), crypto.randomUUID()].join("-"),
+        5: inputFile,
       });
 
       await preparedGeometryTemplateInsert.run();
@@ -208,6 +182,8 @@ export async function generateTileDatabaseFromCityJSON(
 
             for (const texturePath of part.texturePaths) {
               if (globalTextureSet.has(texturePath)) continue;
+
+              if (texturePath === "UNTEXTURED") continue;
 
               globalTextureSet.add(texturePath);
 

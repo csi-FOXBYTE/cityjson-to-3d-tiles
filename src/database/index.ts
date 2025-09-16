@@ -44,9 +44,7 @@ export async function createDatabase(filePath: string, reset = false) {
         arrayIndex REAL,
         filePath TEXT,
         srcSRS TEXT,
-        doc0 BLOB,
-        doc1 BLOB,
-        doc2 BLOB
+        doc BLOB
     ) STRICT
     `);
     await database.exec(`

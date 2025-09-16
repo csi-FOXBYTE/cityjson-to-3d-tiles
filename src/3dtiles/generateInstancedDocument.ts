@@ -108,7 +108,7 @@ export async function generateInstancedDocument(
       .getRoot()
       .listMaterials()
       .forEach((material) => {
-        material.setAlphaMode("BLEND");
+        material.setAlphaMode("MASK");
       });
 
     usedInstanceMap.set(row.refId, document);

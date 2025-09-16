@@ -5,7 +5,6 @@ import { Box2, Vector2 } from "three";
 import type { WorkerWorkReturnType } from "./workerPaylod.js";
 import { generateDocument } from "./generateDocument.js";
 import { Database } from "sqlite";
-import { generateInstancedDocument } from "./generateInstancedDocument.js";
 import { getIO } from "./io.js";
 import path from "path";
 
@@ -15,22 +14,13 @@ export async function generateCell(
   dbInstance: Database
 ): Promise<WorkerWorkReturnType> {
   const lod2res = await generateDocument(
-    cells.filter((cell) => !cell.data.isInstanced),
+    cells,
     dbInstance,
     0.5,
     1 / 32
   );
 
   const io = await getIO();
-  // const lod2resInstanced = await generateInstancedDocument(
-  //   cells.filter((cell) => cell.data.isInstanced),
-  //   databasePath,
-  //   2
-  // );
-
-  // const lod2res = lod2resInstanced;
-
-  // merge somehow;
 
   if (lod2res === null) return null;
 
@@ -75,11 +65,6 @@ export async function generateCell(
   const lod1Documents = await Promise.all(
     lod1Grid.cells.map(async (lod1cell) => {
       const lod1res = await generateDocument(lod1cell, dbInstance, 0.1, 1 / 4);
-      const lod1resInstanced = await generateInstancedDocument(
-        lod1cell.filter((cell) => cell.data.isInstanced),
-        dbInstance,
-        1
-      );
 
       // const lod1res = lod1resInstanced;
 
@@ -106,14 +91,6 @@ export async function generateCell(
               undefined,
               1
             );
-
-            // const lod2resInstanced = await generateInstancedDocument(
-            //   lod2cell.filter((cell) => cell.data.isInstanced),
-            //   databasePath,
-            //   0
-            // );
-
-            // const lod2res = lod2resInstanced;
 
             return lod2res;
           })
