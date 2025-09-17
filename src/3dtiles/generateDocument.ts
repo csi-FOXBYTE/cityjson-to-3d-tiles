@@ -220,7 +220,7 @@ export async function generateDocument(
         return;
       }
 
-      material.setAlphaMode(hasAlphaEnabled ? "OPAQUE" : "BLEND");
+      material.setAlphaMode(hasAlphaEnabled ? "BLEND" : "OPAQUE");
     });
 
   await rootDocument.transform(prune());
