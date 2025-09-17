@@ -17,6 +17,7 @@ import path from "path";
 export async function generate3DTilesFromTileDatabase(
   dbFilePath: string,
   outputFolder: string,
+  hasAlphaEnabled: boolean,
   onProgress: (progress: number) => void,
   opts: {
     threadCount?: number;
@@ -128,6 +129,7 @@ export async function generate3DTilesFromTileDatabase(
           data: {
             cell,
             outputFolder,
+            hasAlphaEnabled,
             databasePath: dbFilePath,
           },
           type: "work",

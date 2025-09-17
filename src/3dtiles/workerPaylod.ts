@@ -10,6 +10,7 @@ export type WorkerWorkPayload = {
       x: number;
       y: number;
     }[];
+    hasAlphaEnabled: boolean;
     outputFolder: string;
     databasePath: string;
   };

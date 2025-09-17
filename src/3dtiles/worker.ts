@@ -16,7 +16,8 @@ parentPort.on("message", async (value: WorkerPayloads) => {
         const result = await generateCell(
           value.data.cell,
           value.data.outputFolder,
-          dbInstance
+          dbInstance,
+          value.data.hasAlphaEnabled,
         );
         parentPort!.postMessage(result);
       } catch (e) {

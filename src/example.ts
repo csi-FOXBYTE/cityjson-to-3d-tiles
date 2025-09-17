@@ -1,35 +1,33 @@
+import path from "path";
 import {
   generate3DTilesFromTileDatabase,
   generateTileDatabaseFromCityJSON,
 } from "./index.js";
 
-const inputFolder = "D:\\generator_test_trees\\src";
+const inputFolder = "D:\\downloads\\Area2_5cm";
 
-const appearance = "FMETheme";
+const appearance = "rgbTexture";
 
-const outputFolder = "D:\\generator_test_trees";
+const outputFolder = "D:\\downloads\\Area2_5cm";
 
 (async () => {
-  // try {
-  //   const { dbFilePath } = await generateTileDatabaseFromCityJSON(
-  //     inputFolder,
-  //     outputFolder,
-  //     appearance,
-  //     console.log,
-  //     { threadCount: 8, srcSRS: "25832" }
-  //   );
-  // } catch (e) {
-  //   console.error(e);
-  // }
+  const { dbFilePath } = await generateTileDatabaseFromCityJSON(
+    inputFolder,
+    outputFolder,
+    appearance,
+    console.log,
+    { threadCount: 2, srcSRS: "25832" }
+  );
 
   // console.log("ENDED")
 
-  const dbFilePath = "D:\\generator_test_trees\\tmp-db.bin"
-
   await generate3DTilesFromTileDatabase(
     dbFilePath,
-    "D:\\generator_test_trees\\tiles",
+    path.join(outputFolder, "tiles"),
+    false,
     console.log,
-    { threadCount: 1 }
+    {
+      threadCount: 2,
+    }
   );
 })();

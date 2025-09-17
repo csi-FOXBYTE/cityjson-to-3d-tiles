@@ -108,6 +108,7 @@ function createFilterFn(minVolume?: number) {
 export async function generateDocument(
   cells: { data: GridItem }[],
   dbInstance: Database,
+  hasAlphaEnabled: boolean,
   minVolume?: number,
   resizeFactor?: number
 ) {
@@ -219,7 +220,7 @@ export async function generateDocument(
         return;
       }
 
-      material.setAlphaMode("BLEND");
+      material.setAlphaMode(hasAlphaEnabled ? "OPAQUE" : "BLEND");
     });
 
   await rootDocument.transform(prune());

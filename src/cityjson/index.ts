@@ -1,14 +1,11 @@
 import { Logger } from "@gltf-transform/core";
-import { cloneDocument, textureCompress } from "@gltf-transform/functions";
 import { PromisePool } from "@supercharge/promise-pool/dist/index.js";
 import { readFile } from "fs/promises";
 import { glob } from "glob";
 import path, { join } from "path";
-import sharp from "sharp";
 import { Worker } from "worker_threads";
 import { getIO } from "../3dtiles/io.js";
 import { createDatabase } from "../database/index.js";
-import { compressBasisUniversal } from "../functions/compressBasisUniversal.js";
 import { buildGeometry } from "./buildGeometry.js";
 import { convertEPSGFromCityJSONToProj4 } from "./helpers.js";
 import type { CityJSONV201 } from "./schemas/cityjson.js";

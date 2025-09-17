@@ -11,11 +11,13 @@ import path from "path";
 export async function generateCell(
   cells: { data: GridItem; x: number; y: number }[],
   outputFolder: string,
-  dbInstance: Database
+  dbInstance: Database,
+  hasAlphaEnabled: boolean,
 ): Promise<WorkerWorkReturnType> {
   const lod2res = await generateDocument(
     cells,
     dbInstance,
+    hasAlphaEnabled,
     0.5,
     1 / 32
   );
@@ -64,7 +66,7 @@ export async function generateCell(
 
   const lod1Documents = await Promise.all(
     lod1Grid.cells.map(async (lod1cell) => {
-      const lod1res = await generateDocument(lod1cell, dbInstance, 0.1, 1 / 4);
+      const lod1res = await generateDocument(lod1cell, dbInstance, hasAlphaEnabled, 0.1, 1 / 4);
 
       // const lod1res = lod1resInstanced;
 
@@ -88,6 +90,7 @@ export async function generateCell(
             const lod2res = await generateDocument(
               lod2cell,
               dbInstance,
+              hasAlphaEnabled,
               undefined,
               1
             );
