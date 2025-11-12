@@ -9,7 +9,7 @@ import { createDatabase } from "../database/index.js";
 import { buildGeometry } from "./buildGeometry.js";
 import { convertEPSGFromCityJSONToProj4 } from "./helpers.js";
 import type { CityJSONV201 } from "./schemas/cityjson.js";
-import { WorkerWorkPayload, WorkerWorkReturnType } from "./workerPayload.js";
+import { WorkerInitPayload, WorkerTerminatePayload, WorkerWorkPayload, WorkerWorkReturnType } from "./workerPayload.js";
 import { WorkerPool } from "./workerPool.js";
 
 Logger.DEFAULT_INSTANCE = new Logger(Logger.Verbosity.SILENT);
@@ -87,36 +87,38 @@ export async function generateTileDatabaseFromCityJSON(
       "INSERT INTO instancedData (arrayIndex, srcSRS, doc, id, filePath) VALUES (?, ?, ?, ?, ?)"
     );
 
-    for (let i = 0; i < templates.length; i++) {
-      const result = await buildGeometry({
-        geometry: [templates[i]],
-        vertices: templateVertices,
-        id: i.toString(),
-        cityJson: cityJson,
-        src: srcSrsProj4,
-        dest: "+proj=geocent +datum=WGS84 +units=m +no_defs +type=crs",
-        folderPath,
-        appearance,
-        noTransform: true,
-        dbInstance: dbInstance,
-      });
+    try {
+      for (let i = 0; i < templates.length; i++) {
+        const result = await buildGeometry({
+          geometry: [templates[i]],
+          vertices: templateVertices,
+          id: i.toString(),
+          cityJson: cityJson,
+          src: srcSrsProj4,
+          dest: "+proj=geocent +datum=WGS84 +units=m +no_defs +type=crs",
+          folderPath,
+          appearance,
+          noTransform: true,
+          dbInstance: dbInstance,
+        });
 
-      if (result.length !== 1) throw new Error("Unexpected!");
+        if (result.length !== 1) throw new Error("Unexpected!");
 
-      const doc0 = await io.readBinary(result[0].serializedDoc!);
+        const doc0 = await io.readBinary(result[0].serializedDoc!);
 
-      await preparedGeometryTemplateInsert.bind({
-        1: i.toString(),
-        2: srcSrsProj4,
-        3: await io.writeBinary(doc0),
-        4: [crypto.randomUUID(), crypto.randomUUID()].join("-"),
-        5: inputFile,
-      });
+        await preparedGeometryTemplateInsert.bind({
+          1: i.toString(),
+          2: srcSrsProj4,
+          3: await io.writeBinary(doc0),
+          4: [crypto.randomUUID(), crypto.randomUUID()].join("-"),
+          5: inputFile,
+        });
 
-      await preparedGeometryTemplateInsert.run();
+        await preparedGeometryTemplateInsert.run();
+      }
+    } finally {
+      await preparedGeometryTemplateInsert.finalize();
     }
-
-    await preparedGeometryTemplateInsert.finalize();
 
     await workerPool.messageWorkers({
       type: "init",
@@ -126,7 +128,7 @@ export async function generateTileDatabaseFromCityJSON(
         dbFile: dbFilePath,
         filePath: inputFile,
       },
-    });
+    } satisfies WorkerInitPayload);
 
     await PromisePool.withConcurrency(threadCount)
       .for(cityObjects)
@@ -148,77 +150,87 @@ export async function generateTileDatabaseFromCityJSON(
             `INSERT INTO data (name, childrenIds, parentIds, address, attributes, type, bbMinX, bbMinY, bbMinZ, bbMaxX, bbMaxY, bbMaxZ, doc, isInstanced, refId, transformationMatrix) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
           );
 
-          for (const part of result) {
-            const id = part.id ?? crypto.randomUUID();
-            if (names.has(id)) console.error("ERROR" + id);
-            names.add(id);
-            await preparedGeometryInsert.bind({
-              1: id,
-              2: cityObject.children?.join("_#,#_"),
-              3: cityObject.parents?.join("_#,#_"),
-              4: JSON.stringify(cityObject.address ?? {}),
-              5: JSON.stringify(cityObject.attributes ?? {}),
-              6: cityObject.type,
-              7: part.cartographicBoxMinX,
-              8: part.cartographicBoxMinY,
-              9: part.cartographicBoxMinZ,
-              10: part.cartographicBoxMaxX,
-              11: part.cartographicBoxMaxY,
-              12: part.cartographicBoxMaxZ,
-              13: part.serializedDoc,
-              14: part.isInstanced ? 1 : 0,
-              15: part.refId,
-              16: part.transformationMatrix?.join("@"),
-            });
-
-            await preparedGeometryInsert.run();
-
-            const preparedTextureInsert = await dbInstance.prepare(
-              `INSERT INTO textures (img, path) VALUES (?, ?)`
-            );
-
-            for (const texturePath of part.texturePaths) {
-              if (globalTextureSet.has(texturePath)) continue;
-
-              if (texturePath === "UNTEXTURED") continue;
-
-              globalTextureSet.add(texturePath);
-
-              const img = await readFile(join(folderPath, texturePath));
-
-              await preparedTextureInsert.bind({
-                1: img,
-                2: texturePath,
+          try {
+            for (const part of result) {
+              const id = part.id ?? crypto.randomUUID();
+              if (names.has(id)) console.error("ERROR" + id);
+              names.add(id);
+              await preparedGeometryInsert.bind({
+                1: id,
+                2: cityObject.children?.join("_#,#_"),
+                3: cityObject.parents?.join("_#,#_"),
+                4: JSON.stringify(cityObject.address ?? {}),
+                5: JSON.stringify(cityObject.attributes ?? {}),
+                6: cityObject.type,
+                7: part.cartographicBoxMinX,
+                8: part.cartographicBoxMinY,
+                9: part.cartographicBoxMinZ,
+                10: part.cartographicBoxMaxX,
+                11: part.cartographicBoxMaxY,
+                12: part.cartographicBoxMaxZ,
+                13: part.serializedDoc,
+                14: part.isInstanced ? 1 : 0,
+                15: part.refId,
+                16: part.transformationMatrix?.join("@"),
               });
 
-              await preparedTextureInsert.run();
-            }
+              await preparedGeometryInsert.run();
 
-            for (const { buffer, name } of part.collectedTextures) {
-              await preparedTextureInsert.bind({
-                1: buffer,
-                2: name,
-              });
+              const preparedTextureInsert = await dbInstance.prepare(
+                `INSERT INTO textures (img, path) VALUES (?, ?)`
+              );
 
-              await preparedTextureInsert.run();
+              try {
+                for (const texturePath of part.texturePaths) {
+                  if (globalTextureSet.has(texturePath)) continue;
+
+                  if (texturePath === "UNTEXTURED") continue;
+
+                  globalTextureSet.add(texturePath);
+
+                  const img = await readFile(join(folderPath, texturePath));
+
+                  await preparedTextureInsert.bind({
+                    1: img,
+                    2: texturePath,
+                  });
+
+                  await preparedTextureInsert.run();
+                }
+
+                for (const { buffer, name } of part.collectedTextures) {
+                  await preparedTextureInsert.bind({
+                    1: buffer,
+                    2: name,
+                  });
+
+                  await preparedTextureInsert.run();
+                }
+              } finally {
+                await preparedTextureInsert.finalize();
+              }
             }
+          } finally {
+            await preparedGeometryInsert.finalize();
           }
-
-          await preparedGeometryInsert.finalize();
         } catch (e) {
-          console.error("SOMETHING WENT WRONG!!!");
-          console.error("SOMETHING WENT WRONG!!!");
-          console.error("SOMETHING WENT WRONG!!!");
           console.error(e);
-          console.error("SOMETHING WENT WRONG!!!");
-          console.error("SOMETHING WENT WRONG!!!");
-          console.error("SOMETHING WENT WRONG!!!");
         }
       });
 
     index++;
 
     onProgress(index / files.length);
+  }
+
+  await workerPool.messageWorkers({ type: "terminate" } satisfies WorkerTerminatePayload)
+
+  workerPool.terminate();
+
+  try {
+    await dbInstance.close();
+  } catch (e) {
+    console.error(e);
   }
 
   return { dbFilePath };

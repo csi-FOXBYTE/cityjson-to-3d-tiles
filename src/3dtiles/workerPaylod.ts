@@ -1,6 +1,6 @@
 import type { GridItem, Tile } from "./types.js";
 
-export type WorkerPayloads = WorkerWorkPayload;
+export type WorkerPayloads = WorkerWorkPayload | WorkerTerminatePayload | WorkerInitPayload;
 
 export type WorkerWorkPayload = {
   type: "work";
@@ -12,8 +12,20 @@ export type WorkerWorkPayload = {
     }[];
     hasAlphaEnabled: boolean;
     outputFolder: string;
-    databasePath: string;
   };
 };
+
+export type WorkerTerminatePayload = {
+  type: "terminate";
+};
+
+export type WorkerInitPayload = {
+  type: "init";
+  data: {
+    databasePath: string;
+  }
+};
+
+
 
 export type WorkerWorkReturnType = Tile | null;

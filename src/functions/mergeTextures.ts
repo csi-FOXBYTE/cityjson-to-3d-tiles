@@ -122,7 +122,7 @@ export async function mergeTextures(
   let collectedTextures: { texture: Texture; name: string }[] = [];
 
   for (const bin of packer.bins) {
-    const composited: { top: number; left: number; input: Buffer }[] = [];
+    const composited: sharp.OverlayOptions[] = [];
 
     for (const rect of bin.rects) {
       composited.push({
@@ -130,6 +130,7 @@ export async function mergeTextures(
           ? await sharp(rect.imageData).rotate(90).toBuffer()
           : rect.imageData,
         top: rect.y,
+        premultiplied: true,
         left: rect.x,
       });
     }
@@ -140,7 +141,9 @@ export async function mergeTextures(
         height: bin.height,
         background: { r: 128, g: 128, b: 128, alpha: 0 },
         channels: 4,
+
       },
+      
       limitInputPixels: false,
     })
       .composite(composited)

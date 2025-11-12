@@ -120,13 +120,13 @@ export async function compressBasisUniversal(document: Document) {
             file,
             "-output_file",
             output,
+            "-uastc",
             "-uastc_level",
-            "4",
+            "1",
             "-uastc_rdo_l",
-            "0.75",
-            "-q",
-            "255",
+            "1",
             "-ktx2",
+            "-no_multithreading"
           ],
           { stdio: ["ignore", "ignore", "inherit"] }
         );

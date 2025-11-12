@@ -8,6 +8,8 @@ import type { GridItem, Tile } from "../3dtiles/types.js";
 import { calculateBBoxVolume } from "./calculateBoundingVolume.js";
 import { WorkerPool } from "../cityjson/workerPool.js";
 import type {
+  WorkerInitPayload,
+  WorkerTerminatePayload,
   WorkerWorkPayload,
   WorkerWorkReturnType,
 } from "./workerPaylod.js";
@@ -28,11 +30,10 @@ export async function generate3DTilesFromTileDatabase(
       force: true,
       recursive: true,
     });
-  } catch (e) {}
+  } catch { }
   try {
     await mkdir(outputFolder, { recursive: true });
-  } catch (e) {}
-
+  } catch { }
   const { threadCount = 4 } = opts;
 
   const children: GridItem[] = [];
@@ -79,6 +80,12 @@ export async function generate3DTilesFromTileDatabase(
     }
   );
 
+  try {
+    await dbInstance.close();
+  } catch (e) {
+    console.error(e);
+  }
+
   const rootTile: Tile = {
     refine: "ADD",
     geometricError: calculateBBoxVolume(globalBoundingBox),
@@ -118,6 +125,8 @@ export async function generate3DTilesFromTileDatabase(
     threadCount
   );
 
+  await workerPool.messageWorkers({ type: "init", data: { databasePath: dbFilePath } } satisfies WorkerInitPayload);
+
   await PromisePool.withConcurrency(threadCount)
     .for(grid.cells)
     .process(async (cell) => {
@@ -130,7 +139,6 @@ export async function generate3DTilesFromTileDatabase(
             cell,
             outputFolder,
             hasAlphaEnabled,
-            databasePath: dbFilePath,
           },
           type: "work",
         });
@@ -169,6 +177,10 @@ export async function generate3DTilesFromTileDatabase(
       index++;
       onProgress(index / grid.cells.length);
     });
+
+  await workerPool.messageWorkers({ type: "terminate" } satisfies WorkerTerminatePayload);
+
+  workerPool.terminate();
 
   await writeFile(
     path.join(outputFolder, "tileset.json"),

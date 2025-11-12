@@ -1,6 +1,6 @@
 import { Matrix4Tuple } from "three";
 
-export type WorkerPayloads = WorkerInitPayload | WorkerWorkPayload;
+export type WorkerPayloads = WorkerInitPayload | WorkerWorkPayload | WorkerTerminatePayload;
 
 export type WorkerInitPayload = {
   type: "init";
@@ -20,6 +20,10 @@ export type WorkerWorkPayload = {
     appearance: string;
   };
 };
+
+export type WorkerTerminatePayload = {
+  type: "terminate";
+}
 
 export type WorkerWorkReturnType = {
   id: string;

@@ -4,11 +4,11 @@ import {
   generateTileDatabaseFromCityJSON,
 } from "./index.js";
 
-const inputFolder = "D:\\downloads\\Area2_5cm";
+const inputFolder = "D:\\test\\src";
 
 const appearance = "rgbTexture";
 
-const outputFolder = "D:\\downloads\\Area2_5cm";
+const outputFolder = "D:\\test\\out";
 
 (async () => {
   const { dbFilePath } = await generateTileDatabaseFromCityJSON(
@@ -16,10 +16,8 @@ const outputFolder = "D:\\downloads\\Area2_5cm";
     outputFolder,
     appearance,
     console.log,
-    { threadCount: 2, srcSRS: "25832" }
+    { threadCount: 16, srcSRS: "25832" }
   );
-
-  // console.log("ENDED")
 
   await generate3DTilesFromTileDatabase(
     dbFilePath,
@@ -27,7 +25,7 @@ const outputFolder = "D:\\downloads\\Area2_5cm";
     false,
     console.log,
     {
-      threadCount: 2,
+      threadCount: 8,
     }
   );
 })();

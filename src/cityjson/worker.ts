@@ -22,7 +22,7 @@ parentPort.on("message", async (value: WorkerPayloads) => {
         cityJson = JSON.parse(value.data.cityJsonRaw) as CityJSONV201;
         src = value.data.src;
         dbInstance = await createDatabase(value.data.dbFile);
-        parentPort?.postMessage("");
+        parentPort?.postMessage(null);
         break;
       case "work": {
         try {
@@ -44,6 +44,11 @@ parentPort.on("message", async (value: WorkerPayloads) => {
         } catch (e) {
           console.error(e);
         }
+        break;
+      }
+      case "terminate": {
+        await dbInstance?.close();
+        parentPort!.postMessage(null);
       }
     }
   } catch (e) {
