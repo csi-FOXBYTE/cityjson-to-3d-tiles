@@ -65,7 +65,7 @@ export { generate3DTilesFromTileDatabase, generateTileDatabaseFromCityJSON };
 
 - **inputFolder** `(string)` – Path to a directory containing CityJSON files. 📂
 - **outputFolder** `(string)` – Directory where the tile database will be created. 📁
-- **appearance** `(string)` – Appearance mode: `"rgbTexture"` for textured meshes or `"vertexColor"` for vertex-colored output. 🌈
+- **appearance** `(string)` – Appearance: e.g. `"rgbTexture"` -> which appearence to use. 🌈
 - **progressCallback** `(function)` – Function called with log messages or progress updates. 📢
 - **options** `(object)`:
 
@@ -90,7 +90,7 @@ export { generate3DTilesFromTileDatabase, generateTileDatabaseFromCityJSON };
 
 | Option        | Default            | Description                                          |
 | ------------- | ------------------ | ---------------------------------------------------- |
-| `appearance`  | `"rgbTexture"`     | Texture mode (`"rgbTexture"` or `"vertexColor"`). 🎨 |
+| `appearance`  | `"rgbTexture"`     | Which CityGML appearance to use. 🎨                  |
 | `threadCount` | `os.cpus().length` | Number of parallel worker threads. 🧵                |
 
 ## 📜 CLI Wrapper Example
