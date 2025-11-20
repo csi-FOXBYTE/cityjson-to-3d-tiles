@@ -9,7 +9,12 @@ import { createDatabase } from "../database/index.js";
 import { buildGeometry } from "./buildGeometry.js";
 import { convertEPSGFromCityJSONToProj4 } from "./helpers.js";
 import type { CityJSONV201 } from "./schemas/cityjson.js";
-import { WorkerInitPayload, WorkerTerminatePayload, WorkerWorkPayload, WorkerWorkReturnType } from "./workerPayload.js";
+import {
+  WorkerInitPayload,
+  WorkerTerminatePayload,
+  WorkerWorkPayload,
+  WorkerWorkReturnType,
+} from "./workerPayload.js";
 import { WorkerPool } from "./workerPool.js";
 
 Logger.DEFAULT_INSTANCE = new Logger(Logger.Verbosity.SILENT);
@@ -62,11 +67,11 @@ export async function generateTileDatabaseFromCityJSON(
 
     const cityJson = JSON.parse(cityJsonRawString) as CityJSONV201;
 
-    let srcSrsProj4: string | null = lastSrcSRSProj4;
+    let srcSrsProj4: string | null = lastSrcSRSProj4 ?? opts.srcSRS ?? null;
 
     try {
       srcSrsProj4 = convertEPSGFromCityJSONToProj4(
-        cityJson.metadata?.referenceSystem ?? opts.srcSRS
+        cityJson.metadata?.referenceSystem
       );
     } catch (e) {
       console.error(e);
@@ -223,7 +228,9 @@ export async function generateTileDatabaseFromCityJSON(
     onProgress(index / files.length);
   }
 
-  await workerPool.messageWorkers({ type: "terminate" } satisfies WorkerTerminatePayload)
+  await workerPool.messageWorkers({
+    type: "terminate",
+  } satisfies WorkerTerminatePayload);
 
   workerPool.terminate();
 
