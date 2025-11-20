@@ -91,16 +91,20 @@ export class WorkerPool<
     if (this._workQueue.length !== 0) {
       for (let i = 0; i < this._busyList.length; i++) {
         if (this._busyList[i]) continue;
-        const { resolve, reject, args } = this._workQueue.pop()!;
+        const { resolve, reject, args } = this._workQueue.shift()!;
         return this._runWorker(i, args, resolve, reject);
       }
     }
   }
 
   terminate() {
+    this._terminated = true;
+    while (this._workQueue.length > 0) {
+      const { reject } = this._workQueue.pop()!;
+      reject(new Error("WorkerPool terminated before job was processed"));
+    }
     for (const worker of this._workers) {
       worker.terminate();
     }
-    this._terminated = true;
   }
 }
