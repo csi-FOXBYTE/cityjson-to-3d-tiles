@@ -21,6 +21,7 @@ import { getTextures } from "../functions/getTextures.js";
 import { mergeTextures } from "../functions/mergeTextures.js";
 import { getIO } from "./io.js";
 import type { GridItem } from "./types.js";
+import { disposeDocument } from "../functions/disposeDocument.js";
 
 Logger.DEFAULT_INSTANCE = new Logger(Logger.Verbosity.SILENT);
 
@@ -117,113 +118,117 @@ export async function generateDocument(
   const io = await getIO();
 
   const localBBox = new Box3();
+  let rootDocument: Document | null = null;
 
-  cells.forEach((p) => {
-    localBBox.expandByPoint(
-      new Vector3(p.data.minX, p.data.minY, p.data.minHeight)
-    );
-    localBBox.expandByPoint(
-      new Vector3(p.data.maxX, p.data.maxY, p.data.maxHeight)
-    );
-  });
-
-  const filteredCell = cells.filter(createFilterFn(minVolume));
-
-  if (filteredCell.length === 0)
-    return {
-      localBBox,
-      document: new Document(),
-    };
-
-  const rootDocument = await getDocument(
-    dbInstance,
-    filteredCell[0].data.name,
-    io
-  );
-
-  await getTextures(rootDocument, dbInstance);
-
-  assignFeatureIdToTexCoord2(rootDocument, 0);
-
-  for (let i = 1; i < filteredCell.length; i++) {
-    const c = filteredCell[i];
-
-    localBBox.union(
-      new Box3(
-        new Vector3(
-          filteredCell[i].data.minX,
-          filteredCell[i].data.minY,
-          filteredCell[i].data.minHeight
-        ),
-        new Vector3(
-          filteredCell[i].data.maxX,
-          filteredCell[i].data.maxY,
-          filteredCell[i].data.maxHeight
-        )
-      )
-    );
-
-    const document = await getDocument(dbInstance, c.data.name, io);
-
-    await getTextures(document, dbInstance);
-
-    assignFeatureIdToTexCoord2(document, i);
-
-    const map = mergeDocuments(rootDocument, document);
-
-    const sceneA = rootDocument.getRoot().listScenes()[0];
-
-    const sceneB = map.get(document.getRoot().listScenes()[0]);
-
-    const rootNode = rootDocument.createNode().setName("SceneB");
-
-    // @ts-ignore
-    for (const node of sceneB!.listChildren()) {
-      rootNode.addChild(node);
-    }
-
-    sceneA.addChild(rootNode);
-    sceneB!.dispose();
-  }
-
-  await mergeTextures(rootDocument, resizeFactor);
-
-  await rootDocument.transform(
-    dedup(),
-    flatten(),
-    weld({}),
-    join({}),
-    unpartition(),
-    simplify({
-      simplifier: MeshoptSimplifier,
-      ratio: 0.0,
-      error: 0.001,
-    }),
-    draco({})
-  );
-
-  await compressBasisUniversal(rootDocument);
-
-  await assignFeatureIds(
-    rootDocument,
-    filteredCell.map((c) => c.data.name),
-    filteredCell.map((c) => c.data.attributes)
-  );
-
-  rootDocument
-    .getRoot()
-    .listMaterials()
-    .forEach((material) => {
-      if (material.getBaseColorTexture() === null) {
-        material.setAlphaMode("OPAQUE");
-
-        return;
-      }
-
-      material.setAlphaMode(hasAlphaEnabled ? "BLEND" : "OPAQUE");
+  try {
+    cells.forEach((p) => {
+      localBBox.expandByPoint(
+        new Vector3(p.data.minX, p.data.minY, p.data.minHeight)
+      );
+      localBBox.expandByPoint(
+        new Vector3(p.data.maxX, p.data.maxY, p.data.maxHeight)
+      );
     });
 
-  await rootDocument.transform(prune());
+    const filteredCell = cells.filter(createFilterFn(minVolume));
 
-  return { document: rootDocument, localBBox };
+    if (filteredCell.length === 0)
+      return {
+        localBBox,
+        document: new Document(),
+      };
+
+    rootDocument = await getDocument(dbInstance, filteredCell[0].data.name, io);
+
+    await getTextures(rootDocument, dbInstance);
+
+    assignFeatureIdToTexCoord2(rootDocument, 0);
+
+    for (let i = 1; i < filteredCell.length; i++) {
+      const c = filteredCell[i];
+
+      localBBox.union(
+        new Box3(
+          new Vector3(
+            filteredCell[i].data.minX,
+            filteredCell[i].data.minY,
+            filteredCell[i].data.minHeight
+          ),
+          new Vector3(
+            filteredCell[i].data.maxX,
+            filteredCell[i].data.maxY,
+            filteredCell[i].data.maxHeight
+          )
+        )
+      );
+
+      const document = await getDocument(dbInstance, c.data.name, io);
+
+      await getTextures(document, dbInstance);
+
+      assignFeatureIdToTexCoord2(document, i);
+
+      const map = mergeDocuments(rootDocument, document);
+
+      const sceneA = rootDocument.getRoot().listScenes()[0];
+
+      const sceneB = map.get(document.getRoot().listScenes()[0]);
+
+      const rootNode = rootDocument.createNode().setName("SceneB");
+
+      // @ts-ignore
+      for (const node of sceneB!.listChildren()) {
+        rootNode.addChild(node);
+      }
+
+      sceneA.addChild(rootNode);
+      sceneB!.dispose();
+
+      disposeDocument(document);
+    }
+
+    await mergeTextures(rootDocument, resizeFactor);
+
+    await rootDocument.transform(
+      dedup(),
+      flatten(),
+      weld({}),
+      join({}),
+      unpartition(),
+      simplify({
+        simplifier: MeshoptSimplifier,
+        ratio: 0.0,
+        error: 0.001,
+      }),
+      draco({})
+    );
+
+    await compressBasisUniversal(rootDocument);
+
+    await assignFeatureIds(
+      rootDocument,
+      filteredCell.map((c) => c.data.name),
+      filteredCell.map((c) => c.data.attributes)
+    );
+
+    rootDocument
+      .getRoot()
+      .listMaterials()
+      .forEach((material) => {
+        if (material.getBaseColorTexture() === null) {
+          material.setAlphaMode("OPAQUE");
+
+          return;
+        }
+
+        material.setAlphaMode(hasAlphaEnabled ? "BLEND" : "OPAQUE");
+      });
+
+    await rootDocument.transform(prune());
+
+    return { document: rootDocument, localBBox };
+  } catch (err) {
+    if (rootDocument) disposeDocument(rootDocument);
+    throw err;
+  }
 }

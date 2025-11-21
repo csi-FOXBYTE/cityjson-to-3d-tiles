@@ -1,20 +1,14 @@
 import { mkdir, rm, writeFile } from "fs/promises";
 import { Box2, Box3, Vector2, Vector3 } from "three";
 import { Cartographic } from "cesium";
-import { Worker } from "worker_threads";
 import { PromisePool } from "@supercharge/promise-pool/dist/index.js";
 import { Grid2D } from "../grid2d/index.js";
 import type { GridItem, Tile } from "../3dtiles/types.js";
 import { calculateBBoxVolume } from "./calculateBoundingVolume.js";
-import { WorkerPool } from "../cityjson/workerPool.js";
-import type {
-  WorkerInitPayload,
-  WorkerTerminatePayload,
-  WorkerWorkPayload,
-  WorkerWorkReturnType,
-} from "./workerPaylod.js";
 import { createDatabase } from "../database/index.js";
 import path from "path";
+import { fork } from "child_process";
+import type { WorkerWorkPayload, WorkerWorkReturnType } from "./worker.js";
 
 export async function generate3DTilesFromTileDatabase(
   dbFilePath: string,
@@ -30,10 +24,10 @@ export async function generate3DTilesFromTileDatabase(
       force: true,
       recursive: true,
     });
-  } catch { }
+  } catch {}
   try {
     await mkdir(outputFolder, { recursive: true });
-  } catch { }
+  } catch {}
   const { threadCount = 4 } = opts;
 
   const children: GridItem[] = [];
@@ -120,28 +114,48 @@ export async function generate3DTilesFromTileDatabase(
 
   let index = 0;
 
-  const workerPool = new WorkerPool(
-    () => new Worker(new URL("./worker.js", import.meta.url)),
-    threadCount
-  );
-
-  await workerPool.messageWorkers({ type: "init", data: { databasePath: dbFilePath } } satisfies WorkerInitPayload);
-
   await PromisePool.withConcurrency(threadCount)
     .for(grid.cells)
     .process(async (cell) => {
       try {
-        const lod2Tile = await workerPool.run<
-          WorkerWorkPayload,
-          WorkerWorkReturnType
-        >({
+        const worker = fork(
+          path.join(import.meta.dirname, "worker.js"),
+          ["--expose-gc"],
+          {}
+        );
+
+        let resolve: ((data: WorkerWorkReturnType | null) => void) | null =
+          null;
+        let reject: ((err: Error) => void) | null = null;
+
+        const p = new Promise<WorkerWorkReturnType>((r, rj) => {
+          resolve = r;
+          reject = rj;
+        });
+
+        worker.on("message", (data: WorkerWorkReturnType) => {
+          resolve!(data);
+        });
+
+        worker.on("exit", (code, signal) => {
+          if (code !== 0) {
+            reject!(
+              new Error(`Worker exited with code ${code}, signal ${signal}`)
+            );
+          }
+        });
+
+        worker.send({
           data: {
             cell,
             outputFolder,
             hasAlphaEnabled,
+            databasePath: dbFilePath,
           },
           type: "work",
-        });
+        } satisfies WorkerWorkPayload);
+
+        const lod2Tile = await p;
 
         if (!lod2Tile) return;
 
@@ -177,10 +191,6 @@ export async function generate3DTilesFromTileDatabase(
       index++;
       onProgress(index / grid.cells.length);
     });
-
-  await workerPool.messageWorkers({ type: "terminate" } satisfies WorkerTerminatePayload);
-
-  workerPool.terminate();
 
   await writeFile(
     path.join(outputFolder, "tileset.json"),

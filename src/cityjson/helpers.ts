@@ -147,10 +147,7 @@ export function getBBoxesFromMeshes(
 }
 
 export function convertEPSGFromCityJSONToProj4(potentialEPSG?: string) {
-  if (!potentialEPSG)
-    throw new Error(
-      "Source coordinate system is undefined, please provice an EPSG code!"
-    );
+  if (!potentialEPSG) return null;
 
   let epsg: string | undefined = undefined;
 

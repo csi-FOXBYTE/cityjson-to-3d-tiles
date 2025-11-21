@@ -60,6 +60,18 @@ export async function generateTileDatabaseFromCityJSON(
 
   let index = 0;
 
+  const preparedGeometryTemplateInsert = await dbInstance.prepare(
+    "INSERT INTO instancedData (arrayIndex, srcSRS, doc, id, filePath) VALUES (?, ?, ?, ?, ?)"
+  );
+
+  const preparedGeometryInsert = await dbInstance.prepare(
+    `INSERT INTO data (name, childrenIds, parentIds, address, attributes, type, bbMinX, bbMinY, bbMinZ, bbMaxX, bbMaxY, bbMaxZ, doc, isInstanced, refId, transformationMatrix) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+  );
+
+  const preparedTextureInsert = await dbInstance.prepare(
+    `INSERT INTO textures (img, path) VALUES (?, ?)`
+  );
+
   for (const { inputFile, folderPath } of fileWithTextureFolders) {
     const cityJsonRaw = await readFile(inputFile);
 
@@ -70,7 +82,7 @@ export async function generateTileDatabaseFromCityJSON(
     let srcSrsProj4: string | null = lastSrcSRSProj4 ?? opts.srcSRS ?? null;
 
     try {
-      srcSrsProj4 = convertEPSGFromCityJSONToProj4(
+      srcSrsProj4 ??= convertEPSGFromCityJSONToProj4(
         cityJson.metadata?.referenceSystem
       );
     } catch (e) {
@@ -87,10 +99,6 @@ export async function generateTileDatabaseFromCityJSON(
     const templates = cityJson["geometry-templates"]?.templates ?? [];
     const templateVertices =
       cityJson["geometry-templates"]?.["vertices-templates"] ?? [];
-
-    const preparedGeometryTemplateInsert = await dbInstance.prepare(
-      "INSERT INTO instancedData (arrayIndex, srcSRS, doc, id, filePath) VALUES (?, ?, ?, ?, ?)"
-    );
 
     try {
       for (let i = 0; i < templates.length; i++) {
@@ -121,8 +129,8 @@ export async function generateTileDatabaseFromCityJSON(
 
         await preparedGeometryTemplateInsert.run();
       }
-    } finally {
-      await preparedGeometryTemplateInsert.finalize();
+    } catch (e) {
+      console.error("ERROR in INSTANCING:", e);
     }
 
     await workerPool.messageWorkers({
@@ -151,10 +159,6 @@ export async function generateTileDatabaseFromCityJSON(
         });
 
         try {
-          const preparedGeometryInsert = await dbInstance.prepare(
-            `INSERT INTO data (name, childrenIds, parentIds, address, attributes, type, bbMinX, bbMinY, bbMinZ, bbMaxX, bbMaxY, bbMaxZ, doc, isInstanced, refId, transformationMatrix) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
-          );
-
           try {
             for (const part of result) {
               const id = part.id ?? crypto.randomUUID();
@@ -181,17 +185,13 @@ export async function generateTileDatabaseFromCityJSON(
 
               await preparedGeometryInsert.run();
 
-              const preparedTextureInsert = await dbInstance.prepare(
-                `INSERT INTO textures (img, path) VALUES (?, ?)`
-              );
-
               try {
                 for (const texturePath of part.texturePaths) {
                   if (globalTextureSet.has(texturePath)) continue;
 
-                  if (texturePath === "UNTEXTURED") continue;
-
                   globalTextureSet.add(texturePath);
+
+                  if (texturePath === "UNTEXTURED") continue;
 
                   const img = await readFile(join(folderPath, texturePath));
 
@@ -211,12 +211,12 @@ export async function generateTileDatabaseFromCityJSON(
 
                   await preparedTextureInsert.run();
                 }
-              } finally {
-                await preparedTextureInsert.finalize();
+              } catch (e) {
+                console.error(e, part.texturePaths);
               }
             }
-          } finally {
-            await preparedGeometryInsert.finalize();
+          } catch (e) {
+            console.error(e);
           }
         } catch (e) {
           console.error(e);
@@ -226,6 +226,22 @@ export async function generateTileDatabaseFromCityJSON(
     index++;
 
     onProgress(index / files.length);
+  }
+
+  try {
+    await preparedGeometryInsert.finalize();
+  } catch (e) {
+    console.error(e);
+  }
+  try {
+    await preparedGeometryTemplateInsert.finalize();
+  } catch (e) {
+    console.error(e);
+  }
+  try {
+    await preparedTextureInsert.finalize();
+  } catch (e) {
+    console.error(e);
   }
 
   await workerPool.messageWorkers({

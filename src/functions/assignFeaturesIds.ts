@@ -99,7 +99,8 @@ export async function assignFeatureIds(
   for (const element of primitives) {
     const primitive = element;
 
-    const texcoords1 = primitive.getAttribute("TEXCOORD_1")?.getArray();
+    const texcoordAccessor = primitive.getAttribute("TEXCOORD_1");
+    const texcoords1 = texcoordAccessor?.getArray();
 
     if (!texcoords1) continue;
 
@@ -129,5 +130,7 @@ export async function assignFeatureIds(
     primitive.setExtension("EXT_mesh_features", meshFeatures);
 
     primitive.setAttribute("TEXCOORD_1", null);
+
+    texcoordAccessor?.dispose();
   }
 }

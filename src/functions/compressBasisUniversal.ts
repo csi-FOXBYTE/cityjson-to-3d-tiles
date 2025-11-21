@@ -3,7 +3,7 @@ import { KHRTextureBasisu } from "@gltf-transform/extensions";
 import childProcess from "child_process";
 import { readFile, rm } from "fs/promises";
 import sharp from "sharp";
-import { temporaryWrite } from "tempy";
+import { temporaryFile } from "tempy";
 
 /**
  * Compresses base color textures in the glTF document using Basis Universal compression.
@@ -48,69 +48,67 @@ export async function compressBasisUniversal(document: Document) {
 
       if (!image) continue;
 
-      const convertedImage = await sharp(image, { limitInputPixels: false })
-        .toFormat("png")
-        .toArray();
-
-      const file = await temporaryWrite(convertedImage[0], {
-        extension: "png",
-      });
-
-      const platform = process.platform;
-      const arch = process.arch;
-
-      let basisu: string;
-
-      switch (platform) {
-        case "linux":
-          if (arch === "arm64") {
-            basisu = import.meta
-              .resolve("@gpu-tex-enc/basis/bin/linux-arm64/basisu")
-              .replace("file://", "");
-            break;
-          }
-          if (arch === "x64") {
-            basisu = import.meta
-              .resolve("@gpu-tex-enc/basis/bin/linux-x64/basisu")
-              .replace("file://", "");
-            break;
-          }
-          throw new Error(
-            `No matching basisu bin found for ${platform} ${arch}.`
-          );
-        case "win32":
-          if (arch === "x64") {
-            basisu = import.meta
-              .resolve("@gpu-tex-enc/basis/bin/win32-x64/basisu.exe")
-              .replace("file:///", "");
-            break;
-          }
-          throw new Error(
-            `No matching basisu bin found for ${platform} ${arch}.`
-          );
-        case "darwin":
-          if (arch === "arm64") {
-            basisu = import.meta
-              .resolve("@gpu-tex-enc/basis/bin/darwin-arm64/basisu")
-              .replace("file://", "");
-            break;
-          }
-          if (arch === "x64") {
-            basisu = import.meta
-              .resolve("@gpu-tex-enc/basis/bin/darwin-x64/basisu")
-              .replace("file://", "");
-            break;
-          }
-          throw new Error(
-            `No matching basisu bin found for ${platform} ${arch}.`
-          );
-        default:
-          throw new Error(
-            `No matching basisu bin found for ${platform} ${arch}.`
-          );
-      }
+      const file = temporaryFile({ extension: "png" });
 
       try {
+        await sharp(image, { limitInputPixels: false })
+          .toFormat("png")
+          .toFile(file);
+
+        const platform = process.platform;
+        const arch = process.arch;
+
+        let basisu: string;
+
+        switch (platform) {
+          case "linux":
+            if (arch === "arm64") {
+              basisu = import.meta
+                .resolve("@gpu-tex-enc/basis/bin/linux-arm64/basisu")
+                .replace("file://", "");
+              break;
+            }
+            if (arch === "x64") {
+              basisu = import.meta
+                .resolve("@gpu-tex-enc/basis/bin/linux-x64/basisu")
+                .replace("file://", "");
+              break;
+            }
+            throw new Error(
+              `No matching basisu bin found for ${platform} ${arch}.`
+            );
+          case "win32":
+            if (arch === "x64") {
+              basisu = import.meta
+                .resolve("@gpu-tex-enc/basis/bin/win32-x64/basisu.exe")
+                .replace("file:///", "");
+              break;
+            }
+            throw new Error(
+              `No matching basisu bin found for ${platform} ${arch}.`
+            );
+          case "darwin":
+            if (arch === "arm64") {
+              basisu = import.meta
+                .resolve("@gpu-tex-enc/basis/bin/darwin-arm64/basisu")
+                .replace("file://", "");
+              break;
+            }
+            if (arch === "x64") {
+              basisu = import.meta
+                .resolve("@gpu-tex-enc/basis/bin/darwin-x64/basisu")
+                .replace("file://", "");
+              break;
+            }
+            throw new Error(
+              `No matching basisu bin found for ${platform} ${arch}.`
+            );
+          default:
+            throw new Error(
+              `No matching basisu bin found for ${platform} ${arch}.`
+            );
+        }
+
         const output = `${file}.ktx2`;
 
         const result = childProcess.spawnSync(
@@ -126,7 +124,7 @@ export async function compressBasisUniversal(document: Document) {
             "-uastc_rdo_l",
             "1",
             "-ktx2",
-            "-no_multithreading"
+            // "-no_multithreading",
           ],
           { stdio: ["ignore", "ignore", "inherit"] }
         );
@@ -148,9 +146,9 @@ export async function compressBasisUniversal(document: Document) {
       } catch (e) {
         console.error(JSON.stringify(e));
         throw e;
+      } finally {
+        await rm(file);
       }
-
-      await rm(file);
     }
   }
 }

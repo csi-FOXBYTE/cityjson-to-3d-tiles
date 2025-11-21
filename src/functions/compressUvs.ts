@@ -1,5 +1,5 @@
 import { Document, Node, Primitive } from "@gltf-transform/core";
-import { Box2, Vector2, Vector3 } from "three";
+import { Box2, Vector2 } from "three";
 import sharp from "sharp";
 
 export async function compressUvs(document: Document) {

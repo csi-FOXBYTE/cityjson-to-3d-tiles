@@ -16,6 +16,17 @@ export async function createDatabase(filePath: string, reset = false) {
 
   await database.open();
 
+    await database.exec(`
+PRAGMA synchronous = OFF;
+PRAGMA journal_mode = OFF;
+PRAGMA threads = 2;
+PRAGMA temp_store = FILE;
+PRAGMA cache_spill = ON;
+PRAGMA ignore_check_constraints = ON;
+PRAGMA foreign_keys = OFF;
+`)
+
+
   if (reset) {
     await database.exec(`
     CREATE TABLE data(
@@ -54,9 +65,6 @@ export async function createDatabase(filePath: string, reset = false) {
     ) STRICT
     `);
   }
-
-  await database.exec("PRAGMA synchronous = OFF");
-  await database.exec("PRAGMA journal_mode = MEMORY");
 
   return database;
 }

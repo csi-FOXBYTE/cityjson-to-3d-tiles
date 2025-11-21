@@ -24,7 +24,7 @@ import {
 export async function mergeTextures(
   document: Document,
   resizeFactor: number = 1,
-  maxResolution = 16384,
+  maxResolution = 8192,
   collectTextures = false,
   pot = true
 ) {
@@ -35,7 +35,8 @@ export async function mergeTextures(
   const boxes: {
     width: number;
     height: number;
-    imageData: Buffer;
+    getImageData: () => Uint8Array;
+    disposeTexture: () => void;
     imageName: string;
     primitive: Primitive;
     id: string;
@@ -59,17 +60,15 @@ export async function mergeTextures(
         if (!texture) continue;
 
         const mimeType = texture.getMimeType();
-        const imageData = texture.getImage();
         const size = texture.getSize();
 
-        if (!imageData || !mimeType || !size) continue;
-
-        const buffer = Buffer.from(imageData);
+        if (!mimeType || !size) continue;
 
         boxes.push({
-          width: size[0],
-          height: size[1],
-          imageData: buffer,
+          width: size[0] * resizeFactor,
+          height: size[1] * resizeFactor,
+          getImageData: () => texture.getImage()!,
+          disposeTexture: () => texture.dispose(),
           imageName: material.getName(),
           primitive: primitive,
           id: crypto.randomUUID(),
@@ -85,7 +84,8 @@ export async function mergeTextures(
     {
       width: number;
       height: number;
-      imageData: Buffer;
+      getImageData: () => Uint8Array;
+      disposeTexture: () => void;
       primitives: Primitive[];
     }
   >();
@@ -95,7 +95,8 @@ export async function mergeTextures(
       boxesMap.set(box.imageName, {
         height: box.height,
         width: box.width,
-        imageData: box.imageData,
+        disposeTexture: box.disposeTexture,
+        getImageData: box.getImageData,
         primitives: [box.primitive],
       });
     } else {
@@ -104,9 +105,9 @@ export async function mergeTextures(
   });
 
   const packer = new MaxRectsPacker(
-    maxResolution / resizeFactor,
-    maxResolution / resizeFactor,
-    2,
+    maxResolution,
+    maxResolution,
+    0,
     {
       allowRotation: false,
       pot,
@@ -125,40 +126,34 @@ export async function mergeTextures(
     const composited: sharp.OverlayOptions[] = [];
 
     for (const rect of bin.rects) {
+      const img = sharp(rect.getImageData()).resize({ width: rect.width, height: rect.height });
+
       composited.push({
         input: rect.rot
-          ? await sharp(rect.imageData).rotate(90).toBuffer()
-          : rect.imageData,
+          ? await img.rotate(90).toBuffer()
+          : await img.toBuffer(),
         top: rect.y,
         premultiplied: true,
         left: rect.x,
       });
     }
 
-    const compositedBase = await sharp({
+    const base = await sharp({
       create: {
         width: bin.width,
         height: bin.height,
         background: { r: 128, g: 128, b: 128, alpha: 0 },
         channels: 4,
-
       },
-      
       limitInputPixels: false,
     })
       .composite(composited)
       .toFormat("png")
       .toBuffer();
 
-    const tempBase = sharp(compositedBase, {
-      limitInputPixels: false,
-    }).resize({
-      width: bin.width * resizeFactor,
-      height: bin.height * resizeFactor,
-      background: { alpha: 1, r: 128, g: 128, b: 128 },
-    });
-
-    const base = await tempBase.toFormat("png").toBuffer();
+    for (const rect of bin.rects) {
+      rect.disposeTexture();
+    }
 
     const materialName = crypto.randomUUID();
 
@@ -176,8 +171,8 @@ export async function mergeTextures(
     material.setDoubleSided(true);
 
     for (const { primitives, x, y, width, height, rot } of bin.rects) {
-      for (const primitive of primitives) {
-        const uvAttr = (primitive as Primitive).getAttribute("TEXCOORD_0");
+      for (const primitive of primitives as Primitive[]) {
+        const uvAttr = primitive.getAttribute("TEXCOORD_0");
 
         if (!uvAttr) continue;
 
@@ -214,6 +209,8 @@ export async function mergeTextures(
             uvArray[i + 1] = v;
           }
         }
+
+        primitive.getMaterial()?.dispose();
 
         uvAttr.setArray(uvArray);
 

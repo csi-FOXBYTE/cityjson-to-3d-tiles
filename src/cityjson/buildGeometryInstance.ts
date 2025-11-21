@@ -110,10 +110,21 @@ export async function buildGeometryInstance(
   io: NodeIO,
   dbInstance: Database
 ): Promise<WorkerWorkReturnType> {
-  const queryResult = await dbInstance.get(
-    `SELECT doc, srcSRS, arrayIndex, id from instancedData WHERE arrayIndex = ?`,
-    [part.template]
-  );
+  let queryResult: any = null;
+  for (let i = 0; i < 16; i++) {
+    try {
+      await new Promise((resolve) =>
+        setTimeout(resolve, i * 100 * Math.random())
+      );
+      queryResult = await dbInstance.get(
+        `SELECT doc, srcSRS, arrayIndex, id from instancedData WHERE arrayIndex = ?`,
+        [part.template]
+      );
+      break;
+    } catch (e) {
+      console.error({ e });
+    }
+  }
 
   if (!queryResult)
     throw new Error(`No geometry template found for "${part.template}"!`);
@@ -152,7 +163,7 @@ export async function buildGeometryInstance(
 
   for (const mesh of root.listMeshes()) {
     for (const primitive of mesh.listPrimitives()) {
-      textureSet.add(primitive.getMaterial()?.getName() ?? "-")
+      textureSet.add(primitive.getMaterial()?.getName() ?? "-");
       const array = primitive.getAttribute("POSITION")?.getArray();
 
       if (!array) continue;
@@ -194,7 +205,7 @@ export async function buildGeometryInstance(
         .setArray(attribute.array as Float32Array);
     }
   }
-
+  
   const transformationMatrix = new Matrix4(
     ...(await computeAffineTransformation3D(
       originalPoints.slice(0, Math.min(20, originalPoints.length)),

@@ -1,40 +1,66 @@
 import type { GridItem, Tile } from "./types.js";
-import { writeFile } from "fs/promises";
 import { Grid2D } from "../grid2d/index.js";
 import { Box2, Vector2 } from "three";
-import type { WorkerWorkReturnType } from "./workerPaylod.js";
-import { generateDocument } from "./generateDocument.js";
-import { Database } from "sqlite";
-import { getIO } from "./io.js";
 import path from "path";
-import { disposeDocument } from "../functions/disposeDocument.js";
+import {
+  GenerateDocumentWorkerPayload,
+  GenerateDocumentWorkerReturnType,
+} from "./generateDocumentWorker.js";
+import { fork } from "child_process";
+import { WorkerWorkReturnType } from "./worker.js";
+
+async function generateDocumentWorkerCall(
+  payload: GenerateDocumentWorkerPayload
+): Promise<GenerateDocumentWorkerReturnType> {
+  const worker = fork(
+    path.join(import.meta.dirname, "generateDocumentWorker.js"),
+    ["--expose-gc"],
+    {
+      stdio: ["ignore", "ipc", "ignore"]
+    }
+  );
+
+  let resolve: ((data: GenerateDocumentWorkerReturnType) => void) | null = null;
+  let reject: ((err: Error) => void) | null = null;
+
+  const p = new Promise<GenerateDocumentWorkerReturnType>((r, rj) => {
+    resolve = r;
+    reject = rj;
+  });
+
+  worker.on("message", (data: GenerateDocumentWorkerReturnType) => {
+    resolve!(data);
+  });
+
+  worker.on("exit", (code, signal) => {
+    if (code !== 0) {
+      reject!(new Error(`Worker exited with code ${code}, signal ${signal}`));
+    }
+  });
+
+  worker.send(payload satisfies GenerateDocumentWorkerPayload);
+
+  return p;
+}
 
 export async function generateCell(
   cells: { data: GridItem; x: number; y: number }[],
   outputFolder: string,
-  dbInstance: Database,
+  databasePath: string,
   hasAlphaEnabled: boolean
 ): Promise<WorkerWorkReturnType> {
-  const lod2res = await generateDocument(
-    cells,
-    dbInstance,
-    hasAlphaEnabled,
-    0.5,
-    1 / 32
-  );
-
-  if (lod2res === null) return null;
-
-  const io = await getIO();
-
   const newName = crypto.randomUUID();
 
-  await writeFile(
-    path.join(outputFolder, `${newName}_lod2.glb`),
-    await io.writeBinary(lod2res.document)
-  );
+  const lod2res = await generateDocumentWorkerCall({
+    cells,
+    databasePath,
+    hasAlphaEnabled,
+    minVolume: 0.5,
+    resizeFactor: 1 / 32,
+    file: path.join(outputFolder, `${newName}_lod2.glb`),
+  });
 
-  disposeDocument(lod2res.document);
+  if (lod2res === null) return null;
 
   let lod2Tile: Tile = {
     boundingVolume: {
@@ -66,24 +92,18 @@ export async function generateCell(
   cells.forEach((item) => lod1Grid.add(item.x, item.y, item.data));
 
   for (const lod1cell of lod1Grid.cells) {
-    const lod1res = await generateDocument(
-      lod1cell,
-      dbInstance,
-      hasAlphaEnabled,
-      0.1,
-      1 / 4
-    );
-
-    if (lod1res === null) continue;
-
     const lod1Name = crypto.randomUUID();
 
-    await writeFile(
-      path.join(outputFolder, `${lod1Name}_lod1.glb`),
-      await io.writeBinary(lod1res.document)
-    );
+    const lod1res = await generateDocumentWorkerCall({
+      cells: lod1cell,
+      databasePath,
+      hasAlphaEnabled,
+      minVolume: 0.1,
+      resizeFactor: 1 / 4,
+      file: path.join(outputFolder, `${lod1Name}_lod1.glb`),
+    });
 
-    disposeDocument(lod1res.document);
+    if (lod1res === null) continue;
 
     const lod1Tile: Tile = {
       boundingVolume: {
@@ -117,24 +137,18 @@ export async function generateCell(
     lod1cell.forEach((item) => lod0Grid.add(item.x, item.y, item.data));
 
     for (const lod0cell of lod0Grid.cells) {
-      const lod0res = await generateDocument(
-        lod0cell,
-        dbInstance,
-        hasAlphaEnabled,
-        undefined,
-        1
-      );
-
-      if (lod0res === null) continue;
-
       const newName = crypto.randomUUID();
 
-      await writeFile(
-        path.join(outputFolder, `${newName}_lod0.glb`),
-        await io.writeBinary(lod0res.document)
-      );
+      const lod0res = await generateDocumentWorkerCall({
+        cells: lod0cell,
+        databasePath,
+        hasAlphaEnabled,
+        minVolume: undefined,
+        resizeFactor: 1,
+        file: path.join(outputFolder, `${newName}_lod0.glb`),
+      });
 
-      disposeDocument(lod0res.document);
+      if (lod0res === null) continue;
 
       lod1Tile.children!.push({
         boundingVolume: {

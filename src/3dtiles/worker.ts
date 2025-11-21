@@ -1,45 +1,40 @@
 import { Logger } from "@gltf-transform/core";
-import { parentPort } from "worker_threads";
-import type { WorkerPayloads } from "./workerPaylod.js";
 import { generateCell } from "./generateCell.js";
-import { createDatabase } from "../database/index.js";
-import { Database } from "sqlite";
+import type { GridItem, Tile } from "./types.js";
 
 Logger.DEFAULT_INSTANCE = new Logger(Logger.Verbosity.SILENT);
 
-if (!parentPort) throw new Error("Is not being called in a worker context!");
+export type WorkerWorkPayload = {
+  type: "work";
+  data: {
+    cell: {
+      data: GridItem;
+      x: number;
+      y: number;
+    }[];
+    hasAlphaEnabled: boolean;
+    outputFolder: string;
+    databasePath: string;
+  };
+};
 
-let dbInstance: Database | null = null;
+export type WorkerWorkReturnType = Tile | null;
 
-parentPort.on("message", async (value: WorkerPayloads) => {
-  switch (value.type) {
-    case "init": {
-      dbInstance = await createDatabase(value.data.databasePath);
-      parentPort!.postMessage(null);
-      break;
-    };
-    case "work": {
-      try {
-        if (!dbInstance) throw new Error("Workers not initialized!");
+process.on("message", async (value: WorkerWorkPayload) => {
+  try {
+    const result = await generateCell(
+      value.data.cell,
+      value.data.outputFolder,
+      value.data.databasePath,
+      value.data.hasAlphaEnabled
+    );
 
-        const result = await generateCell(
-          value.data.cell,
-          value.data.outputFolder,
-          dbInstance,
-          value.data.hasAlphaEnabled,
-        );
+    process.send?.(result satisfies WorkerWorkReturnType);
 
-        parentPort!.postMessage(result);
-      } catch (e) {
-        console.error(e);
-        parentPort!.postMessage(null);
-      }
-      break;
-    }
-    case "terminate": {
-      await dbInstance?.close();
-      parentPort!.postMessage(null);
-      break;
-    }
+    process.exit(0);
+  } catch (e) {
+    console.error(e);
+    process.send?.(null);
+    process.exit(1);
   }
 });
