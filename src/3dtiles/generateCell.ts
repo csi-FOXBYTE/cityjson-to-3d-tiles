@@ -15,9 +15,6 @@ async function generateDocumentWorkerCall(
   const worker = fork(
     path.join(import.meta.dirname, "generateDocumentWorker.js"),
     ["--expose-gc"],
-    {
-      stdio: ["ignore", "ipc", "ignore"]
-    }
   );
 
   let resolve: ((data: GenerateDocumentWorkerReturnType) => void) | null = null;
@@ -36,6 +33,10 @@ async function generateDocumentWorkerCall(
     if (code !== 0) {
       reject!(new Error(`Worker exited with code ${code}, signal ${signal}`));
     }
+  });
+
+  worker.on("error", (error) => {
+    reject!(error);
   });
 
   worker.send(payload satisfies GenerateDocumentWorkerPayload);

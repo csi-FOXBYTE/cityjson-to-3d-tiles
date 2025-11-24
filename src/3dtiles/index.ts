@@ -121,7 +121,6 @@ export async function generate3DTilesFromTileDatabase(
         const worker = fork(
           path.join(import.meta.dirname, "worker.js"),
           ["--expose-gc"],
-          {}
         );
 
         let resolve: ((data: WorkerWorkReturnType | null) => void) | null =
@@ -143,6 +142,10 @@ export async function generate3DTilesFromTileDatabase(
               new Error(`Worker exited with code ${code}, signal ${signal}`)
             );
           }
+        });
+
+        worker.on("error", (error: Error) => {
+          reject!(error);
         });
 
         worker.send({
