@@ -45,6 +45,7 @@ process.on("message", async (data: GenerateDocumentWorkerPayload) => {
     process.exit(0);
   } catch (e) {
     console.error(e);
+    process.send?.(null);
     process.exit(1);
   }
 });

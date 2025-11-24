@@ -17,7 +17,10 @@ export async function getTextures(document: Document, dbInstance: Database) {
       [materialName]
     );
 
-    if (!row) throw new Error(`No texture with name "${materialName}" found!`);
+    if (!row) {
+      console.warn(`No texture with name "${materialName}" found!`);
+      return;
+    }
 
     const img = await sharp(row.img, { limitInputPixels: false })
       .toFormat("png")

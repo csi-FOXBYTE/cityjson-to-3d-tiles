@@ -189,8 +189,6 @@ export async function generateTileDatabaseFromCityJSON(
                 for (const texturePath of part.texturePaths) {
                   if (globalTextureSet.has(texturePath)) continue;
 
-                  globalTextureSet.add(texturePath);
-
                   if (texturePath === "UNTEXTURED") continue;
 
                   const img = await readFile(join(folderPath, texturePath));
@@ -201,15 +199,21 @@ export async function generateTileDatabaseFromCityJSON(
                   });
 
                   await preparedTextureInsert.run();
+
+                  globalTextureSet.add(texturePath);
                 }
 
                 for (const { buffer, name } of part.collectedTextures) {
+                  if (globalTextureSet.has(name)) continue;
+
                   await preparedTextureInsert.bind({
                     1: buffer,
                     2: name,
                   });
 
                   await preparedTextureInsert.run();
+
+                  globalTextureSet.add(name);
                 }
               } catch (e) {
                 console.error(e, part.texturePaths);
