@@ -118,10 +118,9 @@ export async function generate3DTilesFromTileDatabase(
     .for(grid.cells)
     .process(async (cell) => {
       try {
-        const worker = fork(
-          path.join(import.meta.dirname, "worker.js"),
-          ["--expose-gc"],
-        );
+        const worker = fork(path.join(import.meta.dirname, "worker.js"), [
+          "--expose-gc",
+        ]);
 
         let resolve: ((data: WorkerWorkReturnType | null) => void) | null =
           null;
@@ -190,9 +189,10 @@ export async function generate3DTilesFromTileDatabase(
         );
       } catch (e) {
         console.error(e);
+      } finally {
+        index++;
+        onProgress(index / grid.cells.length);
       }
-      index++;
-      onProgress(index / grid.cells.length);
     });
 
   await writeFile(

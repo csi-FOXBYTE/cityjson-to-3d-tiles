@@ -24,6 +24,8 @@ PRAGMA temp_store = FILE;
 PRAGMA cache_spill = ON;
 PRAGMA ignore_check_constraints = ON;
 PRAGMA foreign_keys = OFF;
+PRAGMA busy_timeout = 5000;
+PRAGMA journal_mode = WAL;
 `)
 
 

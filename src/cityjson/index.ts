@@ -15,6 +15,7 @@ import {
   WorkerWorkPayload,
   WorkerWorkReturnType,
 } from "./workerPayload.js";
+import { queue } from "async";
 import { WorkerPool } from "./workerPool.js";
 
 Logger.DEFAULT_INSTANCE = new Logger(Logger.Verbosity.SILENT);
@@ -143,6 +144,10 @@ export async function generateTileDatabaseFromCityJSON(
       },
     } satisfies WorkerInitPayload);
 
+    const dbQueue = queue(async (task: () => Promise<void>) => {
+      await task();
+    }, 1);
+
     await PromisePool.withConcurrency(threadCount)
       .for(cityObjects)
       .process(async ([id, cityObject]) => {
@@ -164,26 +169,27 @@ export async function generateTileDatabaseFromCityJSON(
               const id = part.id ?? crypto.randomUUID();
               if (names.has(id)) console.error("ERROR" + id);
               names.add(id);
-              await preparedGeometryInsert.bind({
-                1: id,
-                2: cityObject.children?.join("_#,#_"),
-                3: cityObject.parents?.join("_#,#_"),
-                4: JSON.stringify(cityObject.address ?? {}),
-                5: JSON.stringify(cityObject.attributes ?? {}),
-                6: cityObject.type,
-                7: part.cartographicBoxMinX,
-                8: part.cartographicBoxMinY,
-                9: part.cartographicBoxMinZ,
-                10: part.cartographicBoxMaxX,
-                11: part.cartographicBoxMaxY,
-                12: part.cartographicBoxMaxZ,
-                13: part.serializedDoc,
-                14: part.isInstanced ? 1 : 0,
-                15: part.refId,
-                16: part.transformationMatrix?.join("@"),
+              await dbQueue.push(async () => {
+                await preparedGeometryInsert.bind({
+                  1: id,
+                  2: cityObject.children?.join("_#,#_"),
+                  3: cityObject.parents?.join("_#,#_"),
+                  4: JSON.stringify(cityObject.address ?? {}),
+                  5: JSON.stringify(cityObject.attributes ?? {}),
+                  6: cityObject.type,
+                  7: part.cartographicBoxMinX,
+                  8: part.cartographicBoxMinY,
+                  9: part.cartographicBoxMinZ,
+                  10: part.cartographicBoxMaxX,
+                  11: part.cartographicBoxMaxY,
+                  12: part.cartographicBoxMaxZ,
+                  13: part.serializedDoc,
+                  14: part.isInstanced ? 1 : 0,
+                  15: part.refId,
+                  16: part.transformationMatrix?.join("@"),
+                });
+                await preparedGeometryInsert.run();
               });
-
-              await preparedGeometryInsert.run();
 
               try {
                 for (const texturePath of part.texturePaths) {
@@ -193,12 +199,14 @@ export async function generateTileDatabaseFromCityJSON(
 
                   const img = await readFile(join(folderPath, texturePath));
 
-                  await preparedTextureInsert.bind({
-                    1: img,
-                    2: texturePath,
-                  });
+                  await dbQueue.push(async () => {
+                    await preparedTextureInsert.bind({
+                      1: img,
+                      2: texturePath,
+                    });
 
-                  await preparedTextureInsert.run();
+                    await preparedTextureInsert.run();
+                  });
 
                   globalTextureSet.add(texturePath);
                 }
@@ -206,12 +214,14 @@ export async function generateTileDatabaseFromCityJSON(
                 for (const { buffer, name } of part.collectedTextures) {
                   if (globalTextureSet.has(name)) continue;
 
-                  await preparedTextureInsert.bind({
-                    1: buffer,
-                    2: name,
-                  });
+                  await dbQueue.push(async () => {
+                    await preparedTextureInsert.bind({
+                      1: buffer,
+                      2: name,
+                    });
 
-                  await preparedTextureInsert.run();
+                    await preparedTextureInsert.run();
+                  });
 
                   globalTextureSet.add(name);
                 }
