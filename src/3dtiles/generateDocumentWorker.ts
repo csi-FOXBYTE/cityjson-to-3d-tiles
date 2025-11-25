@@ -15,7 +15,10 @@ export type GenerateDocumentWorkerPayload = {
 };
 
 export type GenerateDocumentWorkerReturnType = {
-  localBBox: Box3;
+  localBBox: {
+    min: { x: number; y: number; z: number };
+    max: { x: number; y: number; z: number };
+  };
 } | null;
 
 process.on("message", async (data: GenerateDocumentWorkerPayload) => {
@@ -37,9 +40,22 @@ process.on("message", async (data: GenerateDocumentWorkerPayload) => {
     }
 
     process.send?.(
-      result
-        ? { localBBox: result?.localBBox }
-        : (null satisfies GenerateDocumentWorkerReturnType)
+      (result?.localBBox
+        ? {
+            localBBox: {
+              min: {
+                x: result.localBBox.min.x,
+                y: result.localBBox.min.y,
+                z: result.localBBox.min.z,
+              },
+              max: {
+                x: result.localBBox.max.x,
+                y: result.localBBox.max.y,
+                z: result.localBBox.max.z,
+              },
+            },
+          }
+        : null) satisfies GenerateDocumentWorkerReturnType
     );
 
     process.exit(0);

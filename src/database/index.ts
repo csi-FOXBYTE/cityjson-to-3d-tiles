@@ -16,7 +16,7 @@ export async function createDatabase(filePath: string, reset = false) {
 
   await database.open();
 
-    await database.exec(`
+  await database.exec(`
 PRAGMA synchronous = OFF;
 PRAGMA journal_mode = OFF;
 PRAGMA threads = 2;
@@ -24,40 +24,37 @@ PRAGMA temp_store = FILE;
 PRAGMA cache_spill = ON;
 PRAGMA ignore_check_constraints = ON;
 PRAGMA foreign_keys = OFF;
-PRAGMA busy_timeout = 5000;
-PRAGMA journal_mode = WAL;
-`)
-
+`);
 
   if (reset) {
     await database.exec(`
     CREATE TABLE data(
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        name TEXT,
-        parentIds TEXT NULL,
-        childrenIds TEXT NULL,
-        address TEXT,
-        attributes TEXT,
-        type TEXT,
-        bbMinX REAL,
-        bbMinY REAL,
-        bbMinZ REAL,
-        bbMaxX REAL,
-        bbMaxY REAL,
-        bbMaxZ REAL,
-        doc BLOB NULL,
-        isInstanced INT,
-        refId TEXT NULL,
-        transformationMatrix TEXT NULL
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT,
+      parentIds TEXT NULL,
+      childrenIds TEXT NULL,
+      address TEXT,
+      attributes TEXT,
+      type TEXT,
+      bbMinX REAL,
+      bbMinY REAL,
+      bbMinZ REAL,
+      bbMaxX REAL,
+      bbMaxY REAL,
+      bbMaxZ REAL,
+      doc BLOB NULL,
+      isInstanced INT,
+      refId TEXT NULL,
+      transformationMatrix TEXT NULL
     ) STRICT
     `);
     await database.exec(`
     CREATE TABLE instancedData(
-        id TEXT PRIMARY KEY,
-        arrayIndex REAL,
-        filePath TEXT,
-        srcSRS TEXT,
-        doc BLOB
+      id TEXT PRIMARY KEY,
+      arrayIndex REAL,
+      filePath TEXT,
+      srcSRS TEXT,
+      doc BLOB
     ) STRICT
     `);
     await database.exec(`

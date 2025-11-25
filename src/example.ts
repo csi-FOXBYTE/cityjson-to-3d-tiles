@@ -4,11 +4,11 @@ import {
   generateTileDatabaseFromCityJSON,
 } from "./index.js";
 
-const inputFolder = "D:\\Strassenbaumkataster_Sommer_Hamburg_2024_03_15";
+const inputFolder = "E:\\test\\src";
 
 const appearance = "FMETheme";
 
-const outputFolder = "D:\\test\\out3";
+const outputFolder = "E:\\test\\out";
 
 (async () => {
   // const { dbFilePath } = await generateTileDatabaseFromCityJSON(
@@ -23,7 +23,7 @@ const outputFolder = "D:\\test\\out3";
   //   }
   // );
 
-  const dbFilePath = "D:\\test\\out3\\tmp-db.bin"
+  const dbFilePath = "E:\\test\\out\\tmp-db.bin";
 
   await generate3DTilesFromTileDatabase(
     dbFilePath,
@@ -31,7 +31,7 @@ const outputFolder = "D:\\test\\out3";
     true,
     console.log,
     {
-      threadCount: 8,
+      threadCount: 6,
     }
   );
 })();
