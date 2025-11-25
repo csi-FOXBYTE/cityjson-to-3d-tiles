@@ -65,8 +65,8 @@ export async function mergeTextures(
         if (!mimeType || !size) continue;
 
         boxes.push({
-          width: size[0] * resizeFactor,
-          height: size[1] * resizeFactor,
+          width: Math.floor(size[0] * resizeFactor),
+          height: Math.floor(size[1] * resizeFactor),
           getImageData: () => texture.getImage()!,
           disposeTexture: () => texture.dispose(),
           imageName: material.getName(),
@@ -104,19 +104,14 @@ export async function mergeTextures(
     }
   });
 
-  const packer = new MaxRectsPacker(
-    maxResolution,
-    maxResolution,
-    0,
-    {
-      allowRotation: false,
-      pot,
-      smart: true,
-      square: false,
-      border: 0,
-      logic: 1,
-    }
-  );
+  const packer = new MaxRectsPacker(maxResolution, maxResolution, 0, {
+    allowRotation: false,
+    pot,
+    smart: true,
+    square: false,
+    border: 0,
+    logic: 1,
+  });
 
   packer.addArray(Array.from(boxesMap.values()) as unknown as Rectangle[]);
 
@@ -126,7 +121,10 @@ export async function mergeTextures(
     const composited: sharp.OverlayOptions[] = [];
 
     for (const rect of bin.rects) {
-      const img = sharp(rect.getImageData()).resize({ width: rect.width, height: rect.height });
+      const img = sharp(rect.getImageData()).resize({
+        width: rect.width,
+        height: rect.height,
+      });
 
       composited.push({
         input: rect.rot
