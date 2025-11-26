@@ -8,7 +8,7 @@ const inputFolder = "E:\\test\\src";
 
 const appearance = "FMETheme";
 
-const outputFolder = "E:\\test\\out";
+const outputFolder = "D:\\test\\out";
 
 (async () => {
   // const { dbFilePath } = await generateTileDatabaseFromCityJSON(
@@ -23,7 +23,7 @@ const outputFolder = "E:\\test\\out";
   //   }
   // );
 
-  const dbFilePath = "E:\\test\\out\\tmp-db.bin";
+  const dbFilePath = "D:\\test\\out\\tmp-db.bin";
 
   await generate3DTilesFromTileDatabase(
     dbFilePath,
@@ -31,7 +31,7 @@ const outputFolder = "E:\\test\\out";
     true,
     console.log,
     {
-      threadCount: 6,
+      threadCount: 2,
     }
   );
 })();

@@ -18,7 +18,7 @@ export type WorkerWorkPayload = {
   };
 };
 
-export type WorkerWorkReturnType = Tile | null;
+export type WorkerWorkReturnType = { tile: Tile, files: string[] } | null;
 
 process.on("message", async (value: WorkerWorkPayload) => {
   try {

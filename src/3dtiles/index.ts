@@ -14,7 +14,7 @@ export async function generate3DTilesFromTileDatabase(
   dbFilePath: string,
   outputFolder: string,
   hasAlphaEnabled: boolean,
-  onProgress: (progress: number) => void,
+  onProgress: (progress: number, files: string[]) => void,
   opts: {
     threadCount?: number;
   } = {}
@@ -157,11 +157,11 @@ export async function generate3DTilesFromTileDatabase(
           type: "work",
         } satisfies WorkerWorkPayload);
 
-        const lod2Tile = await p;
+        const lod2TileResult = await p;
 
-        if (!lod2Tile) return;
+        if (!lod2TileResult) return;
 
-        rootTile.children!.push(lod2Tile);
+        rootTile.children!.push(lod2TileResult.tile);
 
         await writeFile(
           path.join(outputFolder, "tileset.json"),
@@ -187,12 +187,17 @@ export async function generate3DTilesFromTileDatabase(
             4
           )
         );
+
+        index++;
+        onProgress(index / grid.cells.length, lod2TileResult.files);
+
+        return;
       } catch (e) {
         console.error(e);
-      } finally {
-        index++;
-        onProgress(index / grid.cells.length);
       }
+
+      index++;
+      onProgress(index / grid.cells.length, []);
     });
 
   await writeFile(

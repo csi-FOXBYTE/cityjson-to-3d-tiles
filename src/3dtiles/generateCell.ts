@@ -14,7 +14,7 @@ async function generateDocumentWorkerCall(
 ): Promise<GenerateDocumentWorkerReturnType> {
   const worker = fork(
     path.join(import.meta.dirname, "generateDocumentWorker.js"),
-    ["--expose-gc"],
+    ["--expose-gc"]
   );
 
   let resolve: ((data: GenerateDocumentWorkerReturnType) => void) | null = null;
@@ -50,7 +50,13 @@ export async function generateCell(
   databasePath: string,
   hasAlphaEnabled: boolean
 ): Promise<WorkerWorkReturnType> {
+  const files: string[] = [];
+
   const newName = crypto.randomUUID();
+
+  const filePath = path.resolve(path.join(outputFolder, `${newName}_lod2.glb`));
+
+  files.push(filePath);
 
   const lod2res = await generateDocumentWorkerCall({
     cells,
@@ -58,7 +64,7 @@ export async function generateCell(
     hasAlphaEnabled,
     minVolume: 0.5,
     resizeFactor: 1 / 32,
-    file: path.join(outputFolder, `${newName}_lod2.glb`),
+    file: filePath,
   });
 
   if (lod2res === null) return null;
@@ -95,13 +101,19 @@ export async function generateCell(
   for (const lod1cell of lod1Grid.cells) {
     const lod1Name = crypto.randomUUID();
 
+    const filePath = path.resolve(
+      path.join(outputFolder, `${lod1Name}_lod1.glb`)
+    );
+
+    files.push(filePath);
+
     const lod1res = await generateDocumentWorkerCall({
       cells: lod1cell,
       databasePath,
       hasAlphaEnabled,
       minVolume: 0.1,
       resizeFactor: 1 / 4,
-      file: path.join(outputFolder, `${lod1Name}_lod1.glb`),
+      file: filePath,
     });
 
     if (lod1res === null) continue;
@@ -140,13 +152,19 @@ export async function generateCell(
     for (const lod0cell of lod0Grid.cells) {
       const newName = crypto.randomUUID();
 
+      const filePath = path.resolve(
+        path.join(outputFolder, `${newName}_lod0.glb`)
+      );
+
+      files.push(filePath);
+
       const lod0res = await generateDocumentWorkerCall({
         cells: lod0cell,
         databasePath,
         hasAlphaEnabled,
         minVolume: undefined,
         resizeFactor: 1,
-        file: path.join(outputFolder, `${newName}_lod0.glb`),
+        file: filePath,
       });
 
       if (lod0res === null) continue;
@@ -172,9 +190,12 @@ export async function generateCell(
   }
 
   return {
-    boundingVolume: lod2Tile.boundingVolume,
-    geometricError: 50,
-    refine: "ADD",
-    children: [lod2Tile],
+    tile: {
+      boundingVolume: lod2Tile.boundingVolume,
+      geometricError: 50,
+      refine: "ADD",
+      children: [lod2Tile],
+    },
+    files,
   };
 }
