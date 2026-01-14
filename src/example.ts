@@ -4,34 +4,36 @@ import {
   generateTileDatabaseFromCityJSON,
 } from "./index.js";
 
-const inputFolder = "E:\\test\\src";
+const inputFolder = "C:\\Users\\tga\\Downloads\\LeipzigLOD2\\data";
 
 const appearance = "FMETheme";
 
-const outputFolder = "D:\\test\\out";
+const outputFolder = "C:\\Users\\tga\\Downloads\\LeipzigLOD2\\tiles";
 
 (async () => {
-  // const { dbFilePath } = await generateTileDatabaseFromCityJSON(
-  //   inputFolder,
-  //   outputFolder,
-  //   appearance,
-  //   console.log,
-  //   {
-  //     threadCount: 4,
-  //     srcSRS:
-  //       "+proj=utm +zone=32 +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +units=m +no_defs +type=crs",
-  //   }
-  // );
+  const { dbFilePath } = await generateTileDatabaseFromCityJSON(
+    inputFolder,
+    outputFolder,
+    appearance,
+    console.log,
+    {
+      threadCount: 8,
+      srcSRS:
+        "+proj=utm +zone=33 +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +units=m +no_defs +type=crs",
+    }
+  );
 
-  const dbFilePath = "D:\\test\\out\\tmp-db.bin";
+  // const dbFilePath = "c:\\Users\\tga\\Downloads\\LeipzigLOD2\\tiles\\tmp-db.bin";
 
   await generate3DTilesFromTileDatabase(
     dbFilePath,
     path.join(outputFolder, "tiles"),
     true,
-    console.log,
+    async (progress, files) => {
+      console.log(progress);
+    },
     {
-      threadCount: 2,
+      threadCount: 8,
     }
   );
 })();

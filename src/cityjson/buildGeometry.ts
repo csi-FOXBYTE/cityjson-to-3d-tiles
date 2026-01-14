@@ -53,6 +53,7 @@ export async function buildGeometry({
 
   const result: WorkerWorkReturnType = [];
 
+
   for (let part of geometry) {
     if (part.type === "GeometryInstance") {
       result.push(

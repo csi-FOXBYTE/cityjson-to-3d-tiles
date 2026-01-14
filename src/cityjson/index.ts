@@ -166,8 +166,8 @@ export async function generateTileDatabaseFromCityJSON(
         try {
           try {
             for (const part of result) {
-              const id = part.id ?? crypto.randomUUID();
-              if (names.has(id)) console.error("ERROR" + id);
+              let id = part.id ?? crypto.randomUUID();
+              if (names.has(id)) id = crypto.randomUUID(); // if id is defined multiple times (bad input data) try to resolve it with generating a new id
               names.add(id);
               await dbQueue.push(async () => {
                 await preparedGeometryInsert.bind({
@@ -230,10 +230,10 @@ export async function generateTileDatabaseFromCityJSON(
               }
             }
           } catch (e) {
-            console.error(e);
+            console.error("a", e);
           }
         } catch (e) {
-          console.error(e);
+          console.error("b", e);
         }
       });
 
@@ -245,17 +245,17 @@ export async function generateTileDatabaseFromCityJSON(
   try {
     await preparedGeometryInsert.finalize();
   } catch (e) {
-    console.error(e);
+    console.error("prepared geometry insert failed", e);
   }
   try {
     await preparedGeometryTemplateInsert.finalize();
   } catch (e) {
-    console.error(e);
+    console.error("prepared geometry template insert failed", e);
   }
   try {
     await preparedTextureInsert.finalize();
   } catch (e) {
-    console.error(e);
+    console.error("prepared texture insert failed", e);
   }
 
   await workerPool.messageWorkers({
