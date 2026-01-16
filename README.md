@@ -139,3 +139,7 @@ const [, , src, out, appearance] = process.argv;
 ## 🤝 Contributing
 
 Contributions are welcome! Please open issues or pull requests on the GitHub repository. 🙌
+
+## License
+
+This library is licensed under the [GNU Lesser General Public License](https://www.gnu.org/licenses/#LGPL).
