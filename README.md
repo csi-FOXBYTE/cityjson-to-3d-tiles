@@ -10,6 +10,7 @@ A Node.js library for converting [CityJSON](https://www.cityjson.org/) files int
 - [API](#api)
 - [Options Overview](#options-overview)
 - [CLI Wrapper Example](#cli-wrapper-example)
+- [Building from source](#build)
 - [Contributing](#contributing)
 - [License](#license)
 
@@ -132,6 +133,17 @@ const [, , src, out, appearance] = process.argv;
     { threadCount: 4 }
   );
 })();
+```
+
+<a id="build" />
+
+## Building from source
+
+[pnpm](https://pnpm.io/) is required to build this library.
+
+```bash
+pnpm install
+pnpm run build
 ```
 
 <a id="contributing" />
