@@ -24,7 +24,7 @@ A Node.js library for converting [CityJSON](https://www.cityjson.org/) files int
 ## 📥 Installation
 
 ```bash
-npm install cityjson-to-3d-tiles
+npm install @csi-foxbyte/cityjson-to-3d-tiles
 ```
 
 ## 💻 Usage
