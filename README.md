@@ -10,8 +10,11 @@ A Node.js library for converting [CityJSON](https://www.cityjson.org/) files int
 - [API](#api)
 - [Options Overview](#options-overview)
 - [CLI Wrapper Example](#cli-wrapper-example)
+- [Building from source](#build)
 - [Contributing](#contributing)
 - [License](#license)
+
+<a id="features" />
 
 ## 🎉 Features
 
@@ -21,11 +24,14 @@ A Node.js library for converting [CityJSON](https://www.cityjson.org/) files int
 - **📏 Multiple LODs**: Generates three LODs (LOD0, LOD1, LOD2) to balance detail and performance based on camera distance. 🔍
 - **🧵 Customizable Threading**: Control the number of worker threads for CPU-bound tasks. 🛡️
 
+<a id="installation" />
+
 ## 📥 Installation
 
 ```bash
-npm install cityjson-to-3d-tiles
+npm install @csi-foxbyte/cityjson-to-3d-tiles
 ```
+<a id="usage" />
 
 ## 💻 Usage
 
@@ -59,6 +65,8 @@ const outputFolder = "D:\\generator_test"; // Base output folder for the tile da
 export { generate3DTilesFromTileDatabase, generateTileDatabaseFromCityJSON };
 ```
 
+<a id="api" />
+
 ## ⚙️ API
 
 ### `generateTileDatabaseFromCityJSON(inputFolder, outputFolder, appearance, progressCallback, options)`
@@ -86,12 +94,16 @@ export { generate3DTilesFromTileDatabase, generateTileDatabaseFromCityJSON };
 
 **Returns:** A promise that resolves when 3D Tiles generation is complete. ✅
 
+<a id="options-overview" />
+
 ## 🛠️ Options Overview
 
 | Option        | Default            | Description                                          |
 | ------------- | ------------------ | ---------------------------------------------------- |
 | `appearance`  | `"rgbTexture"`     | Which CityGML appearance to use. 🎨                  |
 | `threadCount` | `os.cpus().length` | Number of parallel worker threads. 🧵                |
+
+<a id="cli-wrapper-example" />
 
 ## 📜 CLI Wrapper Example
 
@@ -123,6 +135,23 @@ const [, , src, out, appearance] = process.argv;
 })();
 ```
 
+<a id="build" />
+
+## Building from source
+
+[pnpm](https://pnpm.io/) is required to build this library.
+
+```bash
+pnpm install
+pnpm run build
+```
+
+<a id="contributing" />
+
 ## 🤝 Contributing
 
 Contributions are welcome! Please open issues or pull requests on the GitHub repository. 🙌
+
+## License
+
+This library is licensed under the [GNU Lesser General Public License](https://www.gnu.org/licenses/#LGPL).
