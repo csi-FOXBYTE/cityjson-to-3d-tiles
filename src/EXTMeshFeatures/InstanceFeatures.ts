@@ -5,6 +5,7 @@ import {
   RefSet,
 } from "@gltf-transform/core";
 import { PropertyTable } from "./StructuralMetadata.js";
+import { Nullable } from "property-graph";
 
 const NAME = "EXT_mesh_features";
 
@@ -48,7 +49,7 @@ export class InstanceFeatures extends ExtensionProperty<IInstanceFeatures> {
     this.parentTypes = [PropertyType.NODE];
   }
 
-  protected override getDefaults() {
+  protected override getDefaults(): Nullable<IInstanceFeatures> {
     return Object.assign(super.getDefaults(), {
       featureIds: new RefSet(),
     });

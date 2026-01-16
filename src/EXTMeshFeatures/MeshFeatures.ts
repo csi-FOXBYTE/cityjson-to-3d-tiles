@@ -1,6 +1,7 @@
 import { ExtensionProperty, Texture, TextureInfo, PropertyType, RefSet, IProperty } from "@gltf-transform/core";
 
 import { PropertyTable } from "./StructuralMetadata.js";
+import { Nullable } from "property-graph";
 
 const NAME = "EXT_mesh_features";
 
@@ -107,7 +108,7 @@ export class MeshFeatures extends ExtensionProperty<IMeshFeatures> {
     this.parentTypes = [PropertyType.PRIMITIVE];
   }
 
-  protected override getDefaults() {
+  protected override getDefaults(): Nullable<IMeshFeatures> {
     return Object.assign(super.getDefaults(), {
       featureIds: new RefSet(),
     });
