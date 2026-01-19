@@ -17,20 +17,56 @@ import {
 } from "./workerPayload.js";
 import { queue } from "async";
 import { WorkerPool } from "./workerPool.js";
+import { existsSync } from "fs";
 
 Logger.DEFAULT_INSTANCE = new Logger(Logger.Verbosity.SILENT);
 
 export async function generateTileDatabaseFromCityJSON(
+  /**
+   * The input folder containing the CityJSON files to aggregate.
+   */
   inputFolder: string,
+  /**
+   * The output folder. Must exist.
+   */
   outputFolder: string,
+  /**
+   * The CityJSON appearance to use.
+   */
   appearance: string,
+  /**
+   * The progress callback function.
+   * @param progress - The progress value in normalized form, where 0 = 0% and 1 = 100%.
+   */
   onProgress: (progress: number) => void,
   opts: {
+    /**
+     * The number of threads to use.
+     * @default 4
+     */
     threadCount?: number;
+    /**
+     * The spatial reference system of the input files expressed as a [PROJ definition](https://proj.org/en/stable/usage/quickstart.html).
+     * If unspecified, will attempt to read the spatial reference from each CityJSON file, if possible.
+     * @default null
+     */
     srcSRS?: string;
+    /**
+     * The destination spatial reference system expressed as a [PROJ definition](https://proj.org/en/stable/usage/quickstart.html).
+     * @default "+proj=geocent +datum=WGS84 +units=m +no_defs +type=crs"
+     */
+    destSRS?: string;
   } = {}
 ) {
   const { threadCount = 4 } = opts;
+
+  if (!existsSync(inputFolder)) {
+    throw new Error(`FATAL: no such directory: ${inputFolder}`);
+  }
+
+  if (!existsSync(outputFolder)) {
+    throw new Error(`FATAL: no such directory: ${outputFolder}`);
+  }
 
   const files = await glob("**/*.json", {
     absolute: true,
@@ -160,6 +196,7 @@ export async function generateTileDatabaseFromCityJSON(
             id,
             folderPath,
             appearance,
+            dest: opts.destSRS
           },
         });
 

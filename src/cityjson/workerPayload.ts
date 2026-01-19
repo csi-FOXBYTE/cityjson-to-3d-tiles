@@ -15,6 +15,7 @@ export type WorkerInitPayload = {
 export type WorkerWorkPayload = {
   type: "work";
   data: {
+    dest?: string;
     id: string;
     folderPath: string;
     appearance: string;

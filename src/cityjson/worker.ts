@@ -8,11 +8,12 @@ import { Database } from "sqlite";
 
 Logger.DEFAULT_INSTANCE = new Logger(Logger.Verbosity.SILENT);
 
+const DEFAULT_DEST_SRS = "+proj=geocent +datum=WGS84 +units=m +no_defs +type=crs";
+
 if (!parentPort) throw new Error("Is not being called in a worker context!");
 
 let cityJson: CityJSONV201;
 let src = "";
-const dest = "+proj=geocent +datum=WGS84 +units=m +no_defs +type=crs";
 let dbInstance: Database | null = null;
 
 parentPort.on("message", async (value: WorkerPayloads) => {
@@ -33,7 +34,7 @@ parentPort.on("message", async (value: WorkerPayloads) => {
             id: value.data.id,
             cityJson,
             src,
-            dest,
+            dest: value.data.dest ?? DEFAULT_DEST_SRS,
             folderPath: value.data.folderPath,
             appearance: value.data.appearance,
             noTransform: false,
