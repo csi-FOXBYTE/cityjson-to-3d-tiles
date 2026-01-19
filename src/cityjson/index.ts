@@ -17,6 +17,7 @@ import {
 } from "./workerPayload.js";
 import { queue } from "async";
 import { WorkerPool } from "./workerPool.js";
+import { existsSync } from "fs";
 
 Logger.DEFAULT_INSTANCE = new Logger(Logger.Verbosity.SILENT);
 
@@ -58,6 +59,14 @@ export async function generateTileDatabaseFromCityJSON(
   } = {}
 ) {
   const { threadCount = 4 } = opts;
+
+  if (!existsSync(inputFolder)) {
+    throw new Error(`FATAL: no such directory: ${inputFolder}`);
+  }
+
+  if (!existsSync(outputFolder)) {
+    throw new Error(`FATAL: no such directory: ${outputFolder}`);
+  }
 
   const files = await glob("**/*.json", {
     absolute: true,
