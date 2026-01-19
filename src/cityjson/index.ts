@@ -28,6 +28,7 @@ export async function generateTileDatabaseFromCityJSON(
   opts: {
     threadCount?: number;
     srcSRS?: string;
+    destSRS?: string;
   } = {}
 ) {
   const { threadCount = 4 } = opts;
@@ -160,6 +161,7 @@ export async function generateTileDatabaseFromCityJSON(
             id,
             folderPath,
             appearance,
+            dest: opts.destSRS
           },
         });
 
