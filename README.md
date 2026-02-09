@@ -31,6 +31,7 @@ A Node.js library for converting [CityJSON](https://www.cityjson.org/) files int
 ```bash
 npm install @csi-foxbyte/cityjson-to-3d-tiles
 ```
+
 <a id="usage" />
 
 ## 💻 Usage
@@ -50,7 +51,7 @@ const outputFolder = "D:\\generator_test"; // Base output folder for the tile da
     outputFolder, // Destination folder
     appearance, // Appearance mode
     console.log, // Progress callback 📊
-    { threadCount: 1 } // Options: number of worker threads 🧵
+    { threadCount: 1 }, // Options: number of worker threads 🧵
   );
 
   // Step 2: Generate Cesium 3D Tiles from the tile database 🛠️
@@ -58,7 +59,7 @@ const outputFolder = "D:\\generator_test"; // Base output folder for the tile da
     dbFilePath, // Path to the generated tile database
     "D:\\generator_test\\tiles", // Output folder for 3D Tiles 🗂️
     console.log, // Progress callback 📈
-    { threadCount: 1 } // Options: number of worker threads 🔧
+    { threadCount: 1 }, // Options: number of worker threads 🔧
   );
 })();
 
@@ -76,7 +77,6 @@ export { generate3DTilesFromTileDatabase, generateTileDatabaseFromCityJSON };
 - **appearance** `(string)` – Appearance: e.g. `"rgbTexture"` -> which appearence to use. 🌈
 - **progressCallback** `(function)` – Function called with log messages or progress updates. 📢
 - **options** `(object)`:
-
   - `threadCount` `(number)` – Number of worker threads to use (default: number of CPU cores). 🧵
 
 **Returns:** A promise that resolves with an object containing:
@@ -89,7 +89,6 @@ export { generate3DTilesFromTileDatabase, generateTileDatabaseFromCityJSON };
 - **tilesOutputFolder** `(string)` – Directory where the Cesium 3D Tiles will be written. 🗂️
 - **progressCallback** `(function)` – Function called with log messages or progress updates. 🔔
 - **options** `(object)`:
-
   - `threadCount` `(number)` – Number of worker threads for tile generation (default: number of CPU cores). 🧵
 
 **Returns:** A promise that resolves when 3D Tiles generation is complete. ✅
@@ -98,10 +97,11 @@ export { generate3DTilesFromTileDatabase, generateTileDatabaseFromCityJSON };
 
 ## 🛠️ Options Overview
 
-| Option        | Default            | Description                                          |
-| ------------- | ------------------ | ---------------------------------------------------- |
-| `appearance`  | `"rgbTexture"`     | Which CityGML appearance to use. 🎨                  |
-| `threadCount` | `os.cpus().length` | Number of parallel worker threads. 🧵                |
+| Option              | Default            | Description                                                                |
+| ------------------- | ------------------ | -------------------------------------------------------------------------- |
+| `appearance`        | `"rgbTexture"`     | Which CityGML appearance to use. 🎨                                        |
+| `threadCount`       | `os.cpus().length` | Number of parallel worker threads. 🧵                                      |
+| `simplifyAddresses` | `false`            | Whether to simplify addresses or not (From multiple to first address only) |
 
 <a id="cli-wrapper-example" />
 
@@ -123,14 +123,14 @@ const [, , src, out, appearance] = process.argv;
     path.resolve(out),
     appearance || "rgbTexture",
     console.log,
-    { threadCount: 4 }
+    { threadCount: 4 },
   );
 
   await generate3DTilesFromTileDatabase(
     dbFilePath,
     path.join(out, "tiles"),
     console.log,
-    { threadCount: 4 }
+    { threadCount: 4 },
   );
 })();
 ```
