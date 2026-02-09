@@ -53,7 +53,6 @@ export async function buildGeometry({
 
   const result: WorkerWorkReturnType = [];
 
-
   for (let part of geometry) {
     if (part.type === "GeometryInstance") {
       result.push(
@@ -63,8 +62,8 @@ export async function buildGeometry({
           dest,
           part,
           io,
-          dbInstance
-        ))
+          dbInstance,
+        )),
       );
 
       continue;
@@ -94,9 +93,9 @@ export async function buildGeometry({
           position: Float32Array;
           indices: Int16Array;
           uvs: Float32Array;
+          colors: Float32Array;
         }[] = [];
 
-        let textureId: number | null = null;
         const textureIdSet = new Set<number>();
 
         let texturePaths: string[] = [];
@@ -104,17 +103,39 @@ export async function buildGeometry({
         let boundaries: [number, number, number][][] = [];
         let textureValues: number[][][] | null = null;
 
+        // --- NEW: Semantic Variables ---
+        let semanticValues: number[] | null = null;
+        let semanticSurfaces: any[] | null = null;
+
         if (part.type === "Solid") {
           boundaries = part.boundaries[0];
           if (hasTexture) textureValues = part?.texture?.[appearance].values[0];
+
+          // Get semantics for Solid (exterior shell)
+          if (part.semantics) {
+            semanticValues = part.semantics.values[0];
+            semanticSurfaces = part.semantics.surfaces;
+          }
         }
         if (part.type === "MultiSurface") {
           boundaries = part.boundaries;
           if (hasTexture) textureValues = part.texture?.[appearance].values;
+
+          // Get semantics for MultiSurface
+          if (part.semantics) {
+            semanticValues = part.semantics.values;
+            semanticSurfaces = part.semantics.surfaces;
+          }
         }
         if (part.type === "CompositeSurface") {
           boundaries = part.boundaries;
           if (hasTexture) textureValues = part.texture?.[appearance].values;
+
+          // Get semantics for CompositeSurface
+          if (part.semantics) {
+            semanticValues = part.semantics.values;
+            semanticSurfaces = part.semantics.surfaces;
+          }
         }
 
         const document = new Document();
@@ -128,9 +149,29 @@ export async function buildGeometry({
         node.setMesh(m);
 
         for (let i = 0; i < boundaries.length; i++) {
+          // IMPORTANT: Reset textureId for every surface.
+          // If we don't, a previous wall texture might apply to a roof!
+          let textureId: number | null = null;
+
           const surfaces = boundaries[i];
           const rings: [number, number, number][][] = [];
           const uvs: number[] = [];
+
+          // --- NEW: Check for Roof Semantics ---
+          let isRoof = false;
+          if (semanticValues && semanticSurfaces) {
+            const semanticIndex = semanticValues[i];
+            // Verify index validity and type
+            if (
+              semanticIndex !== undefined &&
+              semanticIndex !== null &&
+              semanticSurfaces[semanticIndex]
+            ) {
+              if (semanticSurfaces[semanticIndex].type === "RoofSurface") {
+                isRoof = true;
+              }
+            }
+          }
 
           for (let j = 0; j < surfaces.length; j++) {
             const ring = surfaces[j];
@@ -169,7 +210,7 @@ export async function buildGeometry({
                       cityJson.transform.translate[1],
                     p[2] * cityJson.transform.scale[2] +
                       cityJson.transform.translate[2],
-                  ]
+                  ],
             );
 
           if (!indices) continue;
@@ -182,7 +223,7 @@ export async function buildGeometry({
                 globalTransformPoint = new Vector3(
                   flatVertices[0],
                   flatVertices[1],
-                  flatVertices[2]
+                  flatVertices[2],
                 );
 
               position[i + 0] = flatVertices[i + 0] - globalTransformPoint.x;
@@ -206,7 +247,29 @@ export async function buildGeometry({
             }
           }
 
+          // --- NEW: Generate Vertex Colors ---
+          const vertexCount = position.length / 3;
+          const colors = new Float32Array(vertexCount * 3);
+
+          // Logic: Apply RED only if it is a Roof AND has NO texture
+          const applyRed = isRoof && textureId === null;
+
+          for (let k = 0; k < vertexCount; k++) {
+            if (applyRed) {
+              // Red [1, 0, 0]
+              colors[k * 3 + 0] = 1.0;
+              colors[k * 3 + 1] = 0.0;
+              colors[k * 3 + 2] = 0.0;
+            } else {
+              // White [1, 1, 1] (Default/Neutral for textured surfaces)
+              colors[k * 3 + 0] = 1.0;
+              colors[k * 3 + 1] = 1.0;
+              colors[k * 3 + 2] = 1.0;
+            }
+          }
+
           const material = document.createMaterial("UNTEXTURED");
+
           const primitive = document.createPrimitive();
           primitive.setMaterial(material);
 
@@ -214,6 +277,7 @@ export async function buildGeometry({
             indices: new Int16Array(indices),
             position: new Float32Array(position),
             uvs: new Float32Array(uvs),
+            colors: colors, // Store colors
           });
 
           const positionAccessor = document
@@ -221,6 +285,16 @@ export async function buildGeometry({
             .setBuffer(buffer)
             .setArray(new Float32Array(position))
             .setType("VEC3");
+
+          // Add Color Accessor
+          const colorAccessor = document
+            .createAccessor()
+            .setBuffer(buffer)
+            .setArray(colors)
+            .setType("VEC3");
+
+          primitive.setAttribute("COLOR_0", colorAccessor);
+
           if (uvs.length !== 0) {
             const uvAccessor = document
               .createAccessor()
@@ -280,7 +354,7 @@ export async function buildGeometry({
             if (material.getName() === "UNTEXTURED") continue;
 
             const img = await readFile(
-              path.join(folderPath, material.getName())
+              path.join(folderPath, material.getName()),
             );
 
             const texture = document
@@ -298,7 +372,7 @@ export async function buildGeometry({
             undefined,
             undefined,
             true,
-            false
+            false,
           );
 
           await document.transform(prune());
@@ -309,12 +383,12 @@ export async function buildGeometry({
           flatten(),
           weld({}),
           join(),
-          normals()
+          normals(),
         );
 
         const { cartographicBox } = getBBoxesFromMeshes(
           meshes,
-          globalTransformPoint
+          globalTransformPoint,
         );
 
         const serializedDoc = await io.writeBinary(document);

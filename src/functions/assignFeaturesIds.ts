@@ -7,12 +7,34 @@ import {
 import { StructuralMetadataPropertyTables } from "../EXTMeshFeatures/StructuralMetadataPropertyTables.js";
 import { BinaryPropertyTableBuilder } from "../EXTMeshFeatures/BinaryPropertyTableBuilder.js";
 
+function flattenObject(
+  obj: Record<string, any>,
+  prefix = "",
+): Record<string, any> {
+  const result: Record<string, any> = {};
+
+  for (const key in obj) {
+    const value = obj[key];
+    const newKey = prefix ? `${prefix}.${key}` : key;
+
+    if (typeof value === "object" && value !== null) {
+      const nested = flattenObject(value, newKey);
+      Object.assign(result, nested);
+    } else {
+      result[newKey] = value;
+    }
+  }
+  return result;
+}
+
 export async function assignFeatureIds(
   document: Document,
   ids: string[],
-  attributes: Record<string, any>[]
+  attributes: Record<string, any>[],
 ) {
   const root = document.getRoot();
+
+  const flatAttributes = attributes.map((attr) => flattenObject(attr));
 
   const extensionMeshFeatures = document.createExtension(EXTMeshFeatures);
 
@@ -31,7 +53,7 @@ export async function assignFeatureIds(
   }
 
   const extensionStructuralMetadata = document.createExtension(
-    EXTStructuralMetadata
+    EXTStructuralMetadata,
   );
 
   const schema: SchemaDef = {
@@ -56,7 +78,7 @@ export async function assignFeatureIds(
 
   const necessaryProperties = new Set<string>();
 
-  for (const attribute of attributes) {
+  for (const attribute of flatAttributes) {
     for (const key of Object.keys(attribute)) {
       schema.classes!.tree!.properties![key] = {
         name: key,
@@ -68,7 +90,7 @@ export async function assignFeatureIds(
 
   const properties: Record<string, any[]> = {};
 
-  for (const attribute of attributes) {
+  for (const attribute of flatAttributes) {
     for (const key of necessaryProperties.values()) {
       if (!properties[key]) properties[key] = [];
       properties[key].push(String(attribute[key] ?? "-"));
@@ -78,7 +100,7 @@ export async function assignFeatureIds(
   const binaryPropertyTable = BinaryPropertyTableBuilder.create(
     schema,
     "tree",
-    "Property Table"
+    "Property Table",
   )
     .addProperty("id", ids)
     .addProperties(properties)
@@ -86,7 +108,7 @@ export async function assignFeatureIds(
 
   const propertyTable = StructuralMetadataPropertyTables.create(
     extensionStructuralMetadata,
-    binaryPropertyTable
+    binaryPropertyTable,
   );
 
   const structuralMetadata = extensionStructuralMetadata

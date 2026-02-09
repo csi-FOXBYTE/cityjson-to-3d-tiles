@@ -17,7 +17,8 @@ export async function generate3DTilesFromTileDatabase(
   onProgress: (progress: number, files: string[]) => void,
   opts: {
     threadCount?: number;
-  } = {}
+    simplifyAdresses?: boolean;
+  } = {},
 ) {
   try {
     await rm(outputFolder, {
@@ -37,14 +38,14 @@ export async function generate3DTilesFromTileDatabase(
   const dbInstance = await createDatabase(dbFilePath, false);
 
   await dbInstance.each(
-    "SELECT name, bbMinX, bbMinY, bbMinZ, bbMaxX, bbMaxY, isInstanced, bbMaxZ, attributes, type FROM data",
+    "SELECT name, bbMinX, bbMinY, bbMinZ, bbMaxX, bbMaxY, isInstanced, bbMaxZ, attributes, type, address FROM data",
     (err, row) => {
       const minC = new Cartographic(row.bbMinX, row.bbMinY, row.bbMinZ);
       const maxC = new Cartographic(row.bbMaxX, row.bbMaxY, row.bbMaxZ);
 
       const bbox = new Box3(
         new Vector3(minC.longitude, minC.latitude, minC.height),
-        new Vector3(maxC.longitude, maxC.latitude, maxC.height)
+        new Vector3(maxC.longitude, maxC.latitude, maxC.height),
       );
 
       globalBoundingBox.union(bbox);
@@ -60,7 +61,12 @@ export async function generate3DTilesFromTileDatabase(
         isInstanced: row.isInstanced === 1,
         minHeight: minC.height,
         maxHeight: maxC.height,
-        attributes: JSON.parse(row.attributes ?? {}),
+        attributes: {
+          ...JSON.parse(row.attributes ?? "{}"),
+          ...(opts.simplifyAdresses
+            ? { address: JSON.parse(row.address ?? "[]")?.[0] }
+            : { addresses: JSON.parse(row.address ?? "[]") }),
+        },
         type: row.type,
         region: [
           minC.longitude,
@@ -71,7 +77,7 @@ export async function generate3DTilesFromTileDatabase(
           maxC.height,
         ],
       });
-    }
+    },
   );
 
   try {
@@ -99,16 +105,16 @@ export async function generate3DTilesFromTileDatabase(
   const grid = new Grid2D<GridItem>(
     new Box2(
       new Vector2(globalBoundingBox.min.x, globalBoundingBox.min.y),
-      new Vector2(globalBoundingBox.max.x, globalBoundingBox.max.y)
+      new Vector2(globalBoundingBox.max.x, globalBoundingBox.max.y),
     ),
-    0.0002
+    0.0002,
   );
 
   for (const item of children) {
     grid.add(
       (item.maxX - item.minX) * 0.5 + item.minX,
       (item.maxY - item.minY) * 0.5 + item.minY,
-      item
+      item,
     );
   }
 
@@ -138,7 +144,7 @@ export async function generate3DTilesFromTileDatabase(
         worker.on("exit", (code, signal) => {
           if (code !== 0) {
             reject!(
-              new Error(`Worker exited with code ${code}, signal ${signal}`)
+              new Error(`Worker exited with code ${code}, signal ${signal}`),
             );
           }
         });
@@ -184,8 +190,8 @@ export async function generate3DTilesFromTileDatabase(
               root: rootTile,
             },
             undefined,
-            4
-          )
+            4,
+          ),
         );
 
         index++;
@@ -221,7 +227,7 @@ export async function generate3DTilesFromTileDatabase(
         root: rootTile,
       },
       undefined,
-      4
-    )
+      4,
+    ),
   );
 }
