@@ -1,4 +1,4 @@
-# cityjson-to-3d-tiles 🚀📦
+# cityjson-to-3d-tiles
 
 A Node.js library for converting [CityJSON](https://www.cityjson.org/) files into [Cesium 3D Tiles](https://cesium.com/3d-tiles/) with automatic texture packing and Basis compression. Supports generating three levels of detail (LODs) for different distance ranges.
 
@@ -10,13 +10,15 @@ A Node.js library for converting [CityJSON](https://www.cityjson.org/) files int
 - [API](#api)
 - [Options Overview](#options-overview)
 - [CLI Wrapper Example](#cli-wrapper-example)
-- [Building from source](#build)
+- [Docker Job](#docker-job)
+- [Airflow DAG Example](#airflow-dag-example)
+- [Building from source](#building-from-source)
 - [Contributing](#contributing)
 - [License](#license)
 
 <a id="features" />
 
-## 🎉 Features
+## Features
 
 - **🏙️ CityJSON to Tile Database**: Parses CityJSON files and builds a tile database optimized for 3D Tiles generation. 🛠️
 - **🗺️ 3D Tiles Generation**: Converts the tile database into Cesium 3D Tiles, including geometry, textures, and metadata. 🎨
@@ -26,7 +28,7 @@ A Node.js library for converting [CityJSON](https://www.cityjson.org/) files int
 
 <a id="installation" />
 
-## 📥 Installation
+## Installation
 
 ```bash
 npm install @csi-foxbyte/cityjson-to-3d-tiles
@@ -34,7 +36,7 @@ npm install @csi-foxbyte/cityjson-to-3d-tiles
 
 <a id="usage" />
 
-## 💻 Usage
+## Usage
 
 ```js
 import { generate3DTilesFromTileDatabase } from "cityjson-to-3d-tiles/3dtiles/index.js";
@@ -68,7 +70,7 @@ export { generate3DTilesFromTileDatabase, generateTileDatabaseFromCityJSON };
 
 <a id="api" />
 
-## ⚙️ API
+## API
 
 ### `generateTileDatabaseFromCityJSON(inputFolder, outputFolder, appearance, progressCallback, options)`
 
@@ -95,7 +97,7 @@ export { generate3DTilesFromTileDatabase, generateTileDatabaseFromCityJSON };
 
 <a id="options-overview" />
 
-## 🛠️ Options Overview
+## Options Overview
 
 | Option              | Default            | Description                                                                |
 | ------------------- | ------------------ | -------------------------------------------------------------------------- |
@@ -105,7 +107,7 @@ export { generate3DTilesFromTileDatabase, generateTileDatabaseFromCityJSON };
 
 <a id="cli-wrapper-example" />
 
-## 📜 CLI Wrapper Example
+## CLI Wrapper Example
 
 Wrap the functions in a simple CLI script:
 
@@ -135,7 +137,82 @@ const [, , src, out, appearance] = process.argv;
 })();
 ```
 
-<a id="build" />
+<a id="docker-job" />
+
+## Docker Job
+
+The repository provides a Docker-based job runner.
+
+What it does:
+
+- Runs `citygml-tools to-cityjson -o cityjson .` in `/work`
+- Converts CityJSON files from `/work` (including `/work/cityjson`)
+- Creates the temporary SQLite DB in container-local storage (`/tmp`) for better performance on Windows mounts
+- Writes final 3D Tiles to `/work/tiles`
+
+### Build Image
+
+```bash
+docker build -t cityjson-to-3d-tiles .
+```
+
+### Run on Windows (PowerShell)
+
+Run this from your data folder:
+
+```powershell
+docker run --rm -v "${PWD}:/work" cityjson-to-3d-tiles
+```
+
+### Run on Linux (bash/zsh)
+
+Run this from your data folder:
+
+```bash
+docker run --rm -v "$(pwd):/work" cityjson-to-3d-tiles
+```
+
+### Optional Environment Variables
+
+```text
+APPEARANCE=rgbTexture
+THREAD_COUNT=4
+HAS_ALPHA_ENABLED=true
+SIMPLIFY_ADDRESSES=false
+INTERNAL_DB_DIR=/tmp/cityjson-to-3d-tiles
+SRC_SRS=<proj string>
+DEST_SRS=<proj string>
+SHOW_STACK_TRACE=false
+```
+
+Find Proj4 strings:
+
+- PROJ documentation: https://proj.org/
+- EPSG search (incl. Proj4): https://epsg.io/
+
+Example (PowerShell):
+
+```powershell
+docker run --rm -v "${PWD}:/work" -e THREAD_COUNT=8 -e APPEARANCE=rgbTexture cityjson-to-3d-tiles
+```
+
+Example (Linux):
+
+```bash
+docker run --rm -v "$(pwd):/work" -e THREAD_COUNT=8 -e APPEARANCE=rgbTexture cityjson-to-3d-tiles
+```
+
+<a id="airflow-dag-example" />
+
+## Airflow DAG Example
+
+An example DAG is available in:
+
+`examples/airflow/cityjson_to_3d_tiles_dag.py`
+
+It uses `DockerOperator`, runs the GHCR image, and mounts one host folder to `/work`.
+
+<a id="building-from-source" />
 
 ## Building from source
 
@@ -148,9 +225,11 @@ pnpm run build
 
 <a id="contributing" />
 
-## 🤝 Contributing
+## Contributing
 
 Contributions are welcome! Please open issues or pull requests on the GitHub repository. 🙌
+
+<a id="license" />
 
 ## License
 

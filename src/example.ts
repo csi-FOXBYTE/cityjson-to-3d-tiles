@@ -19,7 +19,7 @@ const outputFolder = "C:\\Users\\tga\\Downloads\\RegensburgLOD2\\tiles";
     {
       threadCount: 8,
       srcSRS:
-        "+proj=utm +zone=33 +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +units=m +no_defs +type=crs",
+        "+proj=utm +zone=32 +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +units=m +no_defs +type=crs",
     },
   );
 
