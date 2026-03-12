@@ -145,10 +145,10 @@ The repository provides a Docker-based job runner.
 
 What it does:
 
-- Runs `citygml-tools to-cityjson -o cityjson .` in `/work`
-- Converts CityJSON files from `/work` (including `/work/cityjson`)
+- Runs `citygml-tools to-cityjson -o cityjson .` in `/work` (skippable via `SKIP_CONVERSION`)
+- Converts CityJSON files from `INPUT_DIR` (default: `/work`)
 - Creates the temporary SQLite DB in container-local storage (`/tmp`) for better performance on Windows mounts
-- Writes final 3D Tiles to `/work/tiles`
+- Writes final 3D Tiles to `OUTPUT_DIR` (default: `/work/tiles`)
 
 ### Build Image
 
@@ -179,6 +179,9 @@ APPEARANCE=rgbTexture
 THREAD_COUNT=4
 HAS_ALPHA_ENABLED=true
 SIMPLIFY_ADDRESSES=false
+SKIP_CONVERSION=false
+INPUT_DIR=/work
+OUTPUT_DIR=/work/tiles
 INTERNAL_DB_DIR=/tmp/cityjson-to-3d-tiles
 SRC_SRS=<proj string>
 DEST_SRS=<proj string>

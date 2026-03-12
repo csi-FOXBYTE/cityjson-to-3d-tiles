@@ -86,8 +86,8 @@ function printNiceError(error: unknown): void {
 }
 
 async function main() {
-  const inputDir = "/work";
-  const tilesOutputDir = "/work/tiles";
+  const inputDir = process.env.INPUT_DIR ?? "/work";
+  const tilesOutputDir = process.env.OUTPUT_DIR ?? "/work/tiles";
   const internalDbDir = process.env.INTERNAL_DB_DIR ?? "/tmp/cityjson-to-3d-tiles";
 
   const appearance = process.env.APPEARANCE ?? "rgbTexture";
@@ -102,8 +102,11 @@ async function main() {
   await mkdir(internalDbDir, { recursive: true });
 
   // Ensure previous run outputs are not picked up as input JSON.
-  await rm(tilesOutputDir, { recursive: true, force: true });
-  await mkdir(tilesOutputDir, { recursive: true });
+  // Skip if OUTPUT_DIR is explicitly set — user owns that directory.
+  if (!process.env.OUTPUT_DIR) {
+    await rm(tilesOutputDir, { recursive: true, force: true });
+    await mkdir(tilesOutputDir, { recursive: true });
+  }
 
   console.log(`Using internal DB directory: ${internalDbDir}`);
   console.log("Step 1/2: build tile database from CityJSON");

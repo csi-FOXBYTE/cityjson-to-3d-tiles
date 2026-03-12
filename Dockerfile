@@ -61,6 +61,7 @@ ENV APPEARANCE=rgbTexture \
     THREAD_COUNT=4 \
     HAS_ALPHA_ENABLED=true \
     SIMPLIFY_ADDRESSES=false \
+    SKIP_CONVERSION=false \
     INTERNAL_DB_DIR=/tmp/cityjson-to-3d-tiles \
     SRC_SRS= \
     DEST_SRS=
