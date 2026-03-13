@@ -7,8 +7,9 @@ import type { GridItem, Tile } from "../3dtiles/types.js";
 import { calculateBBoxVolume } from "./calculateBoundingVolume.js";
 import { createDatabase } from "../database/index.js";
 import path from "path";
-import { fork } from "child_process";
+import { ChildProcess, fork } from "child_process";
 import type { WorkerWorkPayload, WorkerWorkReturnType } from "./worker.js";
+import { ChildProcessPool } from "../lib/ChildProcessPool.js";
 
 export async function generate3DTilesFromTileDatabase(
   dbFilePath: string,
@@ -20,15 +21,11 @@ export async function generate3DTilesFromTileDatabase(
     simplifyAdresses?: boolean;
   } = {},
 ) {
-  try {
-    await rm(outputFolder, {
-      force: true,
-      recursive: true,
-    });
-  } catch {}
+  console.time("RUN TOOK");
+
   try {
     await mkdir(outputFolder, { recursive: true });
-  } catch {}
+  } catch { }
   const { threadCount = 4 } = opts;
 
   const children: GridItem[] = [];
@@ -120,13 +117,15 @@ export async function generate3DTilesFromTileDatabase(
 
   let index = 0;
 
+  const workerPool = new ChildProcessPool(() => fork(path.join(import.meta.dirname, "worker.js"), {
+    silent: true,
+  }), threadCount);
+
   await PromisePool.withConcurrency(threadCount)
     .for(grid.cells)
     .process(async (cell) => {
       try {
-        const worker = fork(path.join(import.meta.dirname, "worker.js"), [
-          "--expose-gc",
-        ]);
+        const worker = await workerPool.acquire();
 
         let resolve: ((data: WorkerWorkReturnType | null) => void) | null =
           null;
@@ -139,6 +138,12 @@ export async function generate3DTilesFromTileDatabase(
 
         worker.on("message", (data: WorkerWorkReturnType) => {
           resolve!(data);
+
+          let rebuild = false;
+          if (!data) rebuild = true;
+          if (data && data.heapUsed > 500 * 1024 * 1024) rebuild = true; // if its more than 500mb rebuild
+
+          workerPool.release(worker, rebuild);
         });
 
         worker.on("exit", (code, signal) => {
@@ -147,10 +152,14 @@ export async function generate3DTilesFromTileDatabase(
               new Error(`Worker exited with code ${code}, signal ${signal}`),
             );
           }
+
+          workerPool.release(worker, true);
         });
 
         worker.on("error", (error: Error) => {
           reject!(error);
+
+          workerPool.release(worker, true);
         });
 
         worker.send({
@@ -230,4 +239,6 @@ export async function generate3DTilesFromTileDatabase(
       4,
     ),
   );
+
+  console.timeEnd("RUN TOOK");
 }

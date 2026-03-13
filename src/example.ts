@@ -23,7 +23,7 @@ const outputFolder = "C:\\Users\\tga\\Downloads\\RegensburgLOD2\\tiles";
     },
   );
 
-  // const dbFilePath = "c:\\Users\\tga\\Downloads\\LeipzigLOD2\\tiles\\tmp-db.bin";
+  // const dbFilePath = "C:\\Users\\tga\\Downloads\\RegensburgLOD2\\tiles\\tmp-db.bin";
 
   await generate3DTilesFromTileDatabase(
     dbFilePath,

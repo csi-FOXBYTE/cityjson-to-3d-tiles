@@ -1,6 +1,12 @@
+import sharp from "sharp";
+
+sharp.concurrency(1);
+sharp.cache(false);
+
 import { Logger } from "@gltf-transform/core";
 import { generateCell } from "./generateCell.js";
 import type { GridItem, Tile } from "./types.js";
+
 
 Logger.DEFAULT_INSTANCE = new Logger(Logger.Verbosity.SILENT);
 
@@ -18,7 +24,7 @@ export type WorkerWorkPayload = {
   };
 };
 
-export type WorkerWorkReturnType = { tile: Tile, files: string[] } | null;
+export type WorkerWorkReturnType = { tile: Tile, files: string[], heapUsed: number } | null;
 
 process.on("message", async (value: WorkerWorkPayload) => {
   try {
@@ -30,11 +36,8 @@ process.on("message", async (value: WorkerWorkPayload) => {
     );
 
     process.send?.(result satisfies WorkerWorkReturnType);
-
-    process.exit(0);
   } catch (e) {
     console.error(e);
     process.send?.(null);
-    process.exit(1);
   }
 });

@@ -19,7 +19,6 @@ import { assignFeatureIds } from "../functions/assignFeaturesIds.js";
 import { compressBasisUniversal } from "../functions/compressBasisUniversal.js";
 import { getTextures } from "../functions/getTextures.js";
 import { mergeTextures } from "../functions/mergeTextures.js";
-import { getIO } from "./io.js";
 import type { GridItem } from "./types.js";
 import { disposeDocument } from "../functions/disposeDocument.js";
 
@@ -34,46 +33,52 @@ const cesiumCartesianToCartographicTransform = proj4(
   cesiumCartographic
 );
 
-async function getDocument(dbInstance: Database, name: string, io: NodeIO) {
-  const row = await dbInstance.get(
-    `SELECT doc, isInstanced, transformationMatrix, refId FROM data WHERE name = ?`,
-    [name]
+async function getDocuments(dbInstance: Database, names: string[], io: NodeIO) {
+  const rows = await dbInstance.all(
+    `SELECT doc, isInstanced, transformationMatrix, refId FROM data WHERE name IN (${names.map(() => "?").join(", ")})`,
+    names
   );
 
-  if (!row) throw new Error(`No CityObject found with name "${name}"`);
+  const documents: Document[] = [];
 
-  let rowDoc: Buffer;
+  for (const row of rows) {
+    if (!row) throw new Error(`No CityObject found with name "${name}"`);
 
-  if (row.isInstanced) {
-    const instancedRow = await dbInstance.get(
-      `SELECT doc FROM instancedData WHERE id = ?`,
-      [row.refId]
-    );
+    let rowDoc: Buffer;
 
-    rowDoc = instancedRow.doc;
-  } else {
-    rowDoc = row.doc;
+    if (row.isInstanced) {
+      const instancedRow = await dbInstance.get(
+        `SELECT doc FROM instancedData WHERE id = ?`,
+        [row.refId]
+      );
+
+      rowDoc = instancedRow.doc;
+    } else {
+      rowDoc = row.doc;
+    }
+
+    if (!rowDoc)
+      throw new Error(
+        `CityObject with name "${name}" has no associated document!`
+      );
+
+    const document = await io.readBinary(new Uint8Array(rowDoc));
+
+    if (row.isInstanced) {
+      const transformationMatrix = new Matrix4().fromArray(
+        (row.transformationMatrix as string).split("@").map((a) => parseFloat(a))
+      );
+      document
+        .getRoot()
+        .listScenes()[0]
+        .listChildren()[0]
+        .setMatrix(transformationMatrix.toArray());
+    }
+
+    documents.push(document);
   }
 
-  if (!rowDoc)
-    throw new Error(
-      `CityObject with name "${name}" has no associated document!`
-    );
-
-  const document = await io.readBinary(new Uint8Array(rowDoc));
-
-  if (row.isInstanced) {
-    const transformationMatrix = new Matrix4().fromArray(
-      (row.transformationMatrix as string).split("@").map((a) => parseFloat(a))
-    );
-    document
-      .getRoot()
-      .listScenes()[0]
-      .listChildren()[0]
-      .setMatrix(transformationMatrix.toArray());
-  }
-
-  return document;
+  return documents;
 }
 
 function createFilterFn(minVolume?: number) {
@@ -109,13 +114,12 @@ function createFilterFn(minVolume?: number) {
 export async function generateDocument(
   cells: { data: GridItem }[],
   dbInstance: Database,
+  io: NodeIO,
   hasAlphaEnabled: boolean,
   minVolume?: number,
-  resizeFactor?: number
+  resizeFactor?: number,
 ) {
   if (cells.length === 0) return null;
-
-  const io = await getIO();
 
   const localBBox = new Box3();
   let rootDocument: Document | null = null;
@@ -130,39 +134,41 @@ export async function generateDocument(
       );
     });
 
-    const filteredCell = cells.filter(createFilterFn(minVolume));
+    const filteredCells = cells.filter(createFilterFn(minVolume));
 
-    if (filteredCell.length === 0)
+    const documents = await getDocuments(dbInstance, filteredCells.map(c => c.data.name), io);
+
+    if (filteredCells.length === 0)
       return {
         localBBox,
         document: new Document(),
       };
 
-    rootDocument = await getDocument(dbInstance, filteredCell[0].data.name, io);
+    rootDocument = documents[0];
 
     await getTextures(rootDocument, dbInstance);
 
     assignFeatureIdToTexCoord2(rootDocument, 0);
 
-    for (let i = 1; i < filteredCell.length; i++) {
-      const c = filteredCell[i];
+    for (let i = 1; i < filteredCells.length; i++) {
+      const c = filteredCells[i];
 
       localBBox.union(
         new Box3(
           new Vector3(
-            filteredCell[i].data.minX,
-            filteredCell[i].data.minY,
-            filteredCell[i].data.minHeight
+            c.data.minX,
+            c.data.minY,
+            c.data.minHeight
           ),
           new Vector3(
-            filteredCell[i].data.maxX,
-            filteredCell[i].data.maxY,
-            filteredCell[i].data.maxHeight
+            c.data.maxX,
+            c.data.maxY,
+            c.data.maxHeight
           )
         )
       );
 
-      const document = await getDocument(dbInstance, c.data.name, io);
+      const document = documents[i];
 
       await getTextures(document, dbInstance);
 
@@ -207,8 +213,8 @@ export async function generateDocument(
 
     await assignFeatureIds(
       rootDocument,
-      filteredCell.map((c) => c.data.name),
-      filteredCell.map((c) => c.data.attributes)
+      filteredCells.map((c) => c.data.name),
+      filteredCells.map((c) => c.data.attributes)
     );
 
     rootDocument

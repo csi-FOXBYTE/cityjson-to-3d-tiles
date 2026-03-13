@@ -6,16 +6,15 @@ import {
   GenerateDocumentWorkerPayload,
   GenerateDocumentWorkerReturnType,
 } from "./generateDocumentWorker.js";
-import { fork } from "child_process";
 import { WorkerWorkReturnType } from "./worker.js";
+import { ChildProcessPool } from "../lib/ChildProcessPool.js";
+import { fork } from "child_process";
 
 async function generateDocumentWorkerCall(
-  payload: GenerateDocumentWorkerPayload
+  payload: GenerateDocumentWorkerPayload,
+  childProcessPool: ChildProcessPool,
 ): Promise<GenerateDocumentWorkerReturnType> {
-  const worker = fork(
-    path.join(import.meta.dirname, "generateDocumentWorker.js"),
-    ["--expose-gc"]
-  );
+  const childProcess = await childProcessPool.acquire();
 
   let resolve: ((data: GenerateDocumentWorkerReturnType) => void) | null = null;
   let reject: ((err: Error) => void) | null = null;
@@ -25,21 +24,31 @@ async function generateDocumentWorkerCall(
     reject = rj;
   });
 
-  worker.on("message", (data: GenerateDocumentWorkerReturnType) => {
+  childProcess.on("message", (data: GenerateDocumentWorkerReturnType) => {
     resolve!(data);
+
+    let rebuild = false;
+    if (!data) rebuild = true;
+    if (data && data.heapUsed > 500 * 1024 * 1024) rebuild = true; // if its more than 500mb rebuild
+
+    childProcessPool.release(childProcess, rebuild);
   });
 
-  worker.on("exit", (code, signal) => {
+  childProcess.on("exit", (code, signal) => {
     if (code !== 0) {
       reject!(new Error(`Worker exited with code ${code}, signal ${signal}`));
     }
+
+    childProcessPool.release(childProcess, true);
   });
 
-  worker.on("error", (error) => {
+  childProcess.on("error", (error) => {
     reject!(error);
+
+    childProcessPool.release(childProcess, true);
   });
 
-  worker.send(payload satisfies GenerateDocumentWorkerPayload);
+  childProcess.send(payload satisfies GenerateDocumentWorkerPayload);
 
   return p;
 }
@@ -50,6 +59,10 @@ export async function generateCell(
   databasePath: string,
   hasAlphaEnabled: boolean
 ): Promise<WorkerWorkReturnType> {
+  const childProcessPool = new ChildProcessPool(() => fork(
+    path.join(import.meta.dirname, "generateDocumentWorker.js")
+  ), 1);
+
   const files: string[] = [];
 
   const newName = crypto.randomUUID();
@@ -65,7 +78,7 @@ export async function generateCell(
     minVolume: 0.5,
     resizeFactor: 1 / 32,
     file: filePath,
-  });
+  }, childProcessPool);
 
   if (lod2res === null) return null;
 
@@ -114,7 +127,7 @@ export async function generateCell(
       minVolume: 0.1,
       resizeFactor: 1 / 4,
       file: filePath,
-    });
+    }, childProcessPool);
 
     if (lod1res === null) continue;
 
@@ -165,7 +178,7 @@ export async function generateCell(
         minVolume: undefined,
         resizeFactor: 1,
         file: filePath,
-      });
+      }, childProcessPool);
 
       if (lod0res === null) continue;
 
@@ -197,5 +210,6 @@ export async function generateCell(
       children: [lod2Tile],
     },
     files,
+    heapUsed: process.memoryUsage().heapUsed,
   };
 }
