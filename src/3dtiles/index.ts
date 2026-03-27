@@ -7,7 +7,7 @@ import type { GridItem, Tile } from "../3dtiles/types.js";
 import { calculateBBoxVolume } from "./calculateBoundingVolume.js";
 import { createDatabase } from "../database/index.js";
 import path from "path";
-import { ChildProcess, fork } from "child_process";
+import { fork } from "child_process";
 import type { WorkerWorkPayload, WorkerWorkReturnType } from "./worker.js";
 import { ChildProcessPool } from "../lib/ChildProcessPool.js";
 
@@ -141,7 +141,7 @@ export async function generate3DTilesFromTileDatabase(
 
           let rebuild = false;
           if (!data) rebuild = true;
-          if (data && data.heapUsed > 500 * 1024 * 1024) rebuild = true; // if its more than 500mb rebuild
+          if (data && data.heapUsed > 200 * 1024 * 1024) rebuild = true; // if its more than 200mb rebuild
 
           workerPool.release(worker, rebuild);
         });

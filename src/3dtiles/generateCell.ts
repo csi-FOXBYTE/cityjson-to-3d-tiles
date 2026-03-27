@@ -29,7 +29,7 @@ async function generateDocumentWorkerCall(
 
     let rebuild = false;
     if (!data) rebuild = true;
-    if (data && data.heapUsed > 500 * 1024 * 1024) rebuild = true; // if its more than 500mb rebuild
+    if (data && data.heapUsed > 200 * 1024 * 1024) rebuild = true; // if its more than 200mb rebuild
 
     childProcessPool.release(childProcess, rebuild);
   });

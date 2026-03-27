@@ -19,6 +19,7 @@ import { buildGeometryInstance } from "./buildGeometryInstance.js";
 import { getBBoxesFromMeshes, triangulate3DPolygon } from "./helpers.js";
 import type { CityJSONV201 } from "./schemas/cityjson.js";
 import { WorkerWorkReturnType } from "./workerPayload.js";
+import { getColorFromSemanticSurface, SemanticSurfaceColorDef } from "./color.js";
 
 export async function buildGeometry({
   appearance,
@@ -40,6 +41,7 @@ export async function buildGeometry({
   dest: string;
   folderPath: string;
   appearance: string;
+  semanticSurfaceColorDef: SemanticSurfaceColorDef;
   noTransform?: boolean;
   dbInstance: Database;
 }): Promise<WorkerWorkReturnType> {
@@ -157,8 +159,7 @@ export async function buildGeometry({
           const rings: [number, number, number][][] = [];
           const uvs: number[] = [];
 
-          // --- NEW: Check for Roof Semantics ---
-          let isRoof = false;
+          let semanticSurfaceType: null | string = null;
           if (semanticValues && semanticSurfaces) {
             const semanticIndex = semanticValues[i];
             // Verify index validity and type
@@ -167,9 +168,7 @@ export async function buildGeometry({
               semanticIndex !== null &&
               semanticSurfaces[semanticIndex]
             ) {
-              if (semanticSurfaces[semanticIndex].type === "RoofSurface") {
-                isRoof = true;
-              }
+              semanticSurfaceType = semanticSurfaces[semanticIndex].type;
             }
           }
 
@@ -204,13 +203,13 @@ export async function buildGeometry({
               noTransform
                 ? p
                 : [
-                    p[0] * cityJson.transform.scale[0] +
-                      cityJson.transform.translate[0],
-                    p[1] * cityJson.transform.scale[1] +
-                      cityJson.transform.translate[1],
-                    p[2] * cityJson.transform.scale[2] +
-                      cityJson.transform.translate[2],
-                  ],
+                  p[0] * cityJson.transform.scale[0] +
+                  cityJson.transform.translate[0],
+                  p[1] * cityJson.transform.scale[1] +
+                  cityJson.transform.translate[1],
+                  p[2] * cityJson.transform.scale[2] +
+                  cityJson.transform.translate[2],
+                ],
             );
 
           if (!indices) continue;
@@ -251,21 +250,12 @@ export async function buildGeometry({
           const vertexCount = position.length / 3;
           const colors = new Float32Array(vertexCount * 3);
 
-          // Logic: Apply RED only if it is a Roof AND has NO texture
-          const applyRed = isRoof && textureId === null;
+          const { r, g, b } = getColorFromSemanticSurface(semanticSurfaceType ?? "", {});
 
           for (let k = 0; k < vertexCount; k++) {
-            if (applyRed) {
-              // Red [1, 0, 0]
-              colors[k * 3 + 0] = 1.0;
-              colors[k * 3 + 1] = 0.0;
-              colors[k * 3 + 2] = 0.0;
-            } else {
-              // White [1, 1, 1] (Default/Neutral for textured surfaces)
-              colors[k * 3 + 0] = 1.0;
-              colors[k * 3 + 1] = 1.0;
-              colors[k * 3 + 2] = 1.0;
-            }
+            colors[k * 3 + 0] = r;
+            colors[k * 3 + 1] = g;
+            colors[k * 3 + 2] = b;
           }
 
           const material = document.createMaterial("UNTEXTURED");
