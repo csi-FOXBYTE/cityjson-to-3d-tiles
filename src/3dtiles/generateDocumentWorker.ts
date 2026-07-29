@@ -6,6 +6,7 @@ import { getIO } from "./io.js";
 import type { NodeIO } from "@gltf-transform/core";
 import type { Database } from "sqlite";
 import sharp from "sharp";
+import { disposeDocument } from "../functions/disposeDocument.js";
 
 sharp.concurrency(1);
 sharp.cache(false);
@@ -24,7 +25,7 @@ export type GenerateDocumentWorkerReturnType = {
     min: { x: number; y: number; z: number };
     max: { x: number; y: number; z: number };
   };
-  heapUsed: number;
+  rss: number;
 } | null;
 
 let database: Database | null;
@@ -58,25 +59,29 @@ process.on("message", async (data: GenerateDocumentWorkerPayload) => {
 
     if (!result) return process.send?.(null);
 
-    await writeFile(data.file, await io.writeBinary(result.document));
+    try {
+      await writeFile(data.file, await io.writeBinary(result.document));
 
-    process.send?.(
-      ({
-        localBBox: {
-          min: {
-            x: result.localBBox.min.x,
-            y: result.localBBox.min.y,
-            z: result.localBBox.min.z,
+      process.send?.(
+        ({
+          localBBox: {
+            min: {
+              x: result.localBBox.min.x,
+              y: result.localBBox.min.y,
+              z: result.localBBox.min.z,
+            },
+            max: {
+              x: result.localBBox.max.x,
+              y: result.localBBox.max.y,
+              z: result.localBBox.max.z,
+            },
           },
-          max: {
-            x: result.localBBox.max.x,
-            y: result.localBBox.max.y,
-            z: result.localBBox.max.z,
-          },
-        },
-        heapUsed: process.memoryUsage().heapUsed,
-      }) satisfies GenerateDocumentWorkerReturnType
-    );
+          rss: process.memoryUsage().rss,
+        }) satisfies GenerateDocumentWorkerReturnType
+      );
+    } finally {
+      disposeDocument(result.document);
+    }
   } catch (e) {
     console.error(e);
     process.send?.(null);

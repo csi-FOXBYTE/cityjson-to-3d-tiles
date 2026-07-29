@@ -24,7 +24,7 @@ export type WorkerWorkPayload = {
   };
 };
 
-export type WorkerWorkReturnType = { tile: Tile, files: string[], heapUsed: number } | null;
+export type WorkerWorkReturnType = { tile: Tile, files: string[], rss: number } | null;
 
 process.on("message", async (value: WorkerWorkPayload) => {
   try {

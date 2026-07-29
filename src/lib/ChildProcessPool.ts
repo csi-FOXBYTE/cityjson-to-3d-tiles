@@ -7,7 +7,7 @@ export class ChildProcessPool {
     private _availableChildProcesses: ChildProcess[] = [];
     private _waitQueue: ((value: ChildProcess | PromiseLike<ChildProcess>) => void)[] = [];
     private _maxConcurrency: number;
-    private _instantiatedChildProcessCount: number = 0;
+    private _childProcesses = new Set<ChildProcess>();
     private _debug = false;
 
     constructor(generateChildProcessFn: ChildProcessPoolGenerateChildProcessFn, maxConcurrency: number, debug = false) {
@@ -25,43 +25,48 @@ export class ChildProcessPool {
     private _generateChildProcess() {
         const childProcess = this._generateChildProcessFn();
 
-        this._instantiatedChildProcessCount++;
+        this._childProcesses.add(childProcess);
 
         return childProcess;
     }
 
+    private _destroyChildProcess(childProcess: ChildProcess) {
+        this._releaseListeners(childProcess);
+        this._childProcesses.delete(childProcess);
+
+        if (!this._isChildProcessDead(childProcess)) childProcess.kill("SIGKILL");
+    }
+
     public acquire() {
         return new Promise<ChildProcess>((resolve) => {
-            if (this._availableChildProcesses.length !== 0) {
-                let childProcess = this._availableChildProcesses.pop()!;
+            while (this._availableChildProcesses.length !== 0) {
+                const childProcess = this._availableChildProcesses.pop()!;
 
                 if (this._isChildProcessDead(childProcess)) {
-                    this._instantiatedChildProcessCount--;
-
-                    childProcess = this._generateChildProcess();
+                    this._destroyChildProcess(childProcess);
 
                     if (this._debug) console.log("CHILD_PROCESS was dead");
                 } else {
-                    if (this._debug) console.log("CHILD_PROCESS was reused")
-                }
+                    if (this._debug) console.log("CHILD_PROCESS was reused");
 
-                return resolve(childProcess);
+                    return resolve(childProcess);
+                }
             }
 
-            if (this._maxConcurrency > this._instantiatedChildProcessCount) {
+            if (this._maxConcurrency > this._childProcesses.size) {
                 const childProcess = this._generateChildProcess();
 
                 resolve(childProcess);
 
-                if (this._debug) console.log("CHILD_PROCESS was generated")
+                if (this._debug) console.log("CHILD_PROCESS was generated");
             } else {
                 this._waitQueue.push(resolve);
-                if (this._debug) console.log("CHILD_PROCESS was reused")
+                if (this._debug) console.log("CHILD_PROCESS was queued");
             }
-        })
+        });
     }
 
-    public _releaseListeners(childProcess: ChildProcess) {
+    private _releaseListeners(childProcess: ChildProcess) {
         childProcess.removeAllListeners();
 
         if (childProcess.stderr) childProcess.stderr.removeAllListeners();
@@ -72,42 +77,32 @@ export class ChildProcessPool {
     public release(childProcess: ChildProcess, rebuild?: boolean) {
         this._releaseListeners(childProcess);
 
-        let currentChildProcess = childProcess;
+        if (rebuild || this._isChildProcessDead(childProcess)) {
+            this._destroyChildProcess(childProcess);
 
-        if (rebuild) {
-            childProcess.kill("SIGKILL");
+            if (this._waitQueue.length > 0) {
+                const nextResolve = this._waitQueue.shift()!;
+                nextResolve(this._generateChildProcess());
+            }
 
-            this._instantiatedChildProcessCount--;
-
-            currentChildProcess = this._generateChildProcess();
-        }
-
-        if (this._isChildProcessDead(currentChildProcess)) {
-            this._instantiatedChildProcessCount--;
-
-            currentChildProcess = this._generateChildProcess();
+            return;
         }
 
         if (this._waitQueue.length > 0) {
             const nextResolve = this._waitQueue.shift()!;
 
-            nextResolve(currentChildProcess);
+            nextResolve(childProcess);
         } else {
-            this._availableChildProcesses.push(currentChildProcess);
+            this._availableChildProcesses.push(childProcess);
         }
     }
 
     public destroyAll() {
         this._waitQueue = [];
+        this._availableChildProcesses = [];
 
-        while (this._availableChildProcesses.length > 0) {
-            const childProcess = this._availableChildProcesses.pop()!;
-
-            this._releaseListeners(childProcess);
-
-            if (!this._isChildProcessDead(childProcess)) childProcess.kill("SIGKILL");
+        for (const childProcess of this._childProcesses) {
+            this._destroyChildProcess(childProcess);
         }
-
-        this._instantiatedChildProcessCount = 0;
     }
 };

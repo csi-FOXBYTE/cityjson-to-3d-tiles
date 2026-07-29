@@ -19,7 +19,7 @@ import { buildGeometryInstance } from "./buildGeometryInstance.js";
 import { getBBoxesFromMeshes, triangulate3DPolygon } from "./helpers.js";
 import type { CityJSONV201 } from "./schemas/cityjson.js";
 import { WorkerWorkReturnType } from "./workerPayload.js";
-import { getColorFromSemanticSurface, SemanticSurfaceColorDef } from "./color.js";
+import { getColorFromSemanticSurface } from "./color.js";
 
 export async function buildGeometry({
   appearance,
@@ -41,7 +41,6 @@ export async function buildGeometry({
   dest: string;
   folderPath: string;
   appearance: string;
-  semanticSurfaceColorDef: SemanticSurfaceColorDef;
   noTransform?: boolean;
   dbInstance: Database;
 }): Promise<WorkerWorkReturnType> {

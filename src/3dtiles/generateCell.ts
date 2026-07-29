@@ -10,6 +10,8 @@ import { WorkerWorkReturnType } from "./worker.js";
 import { ChildProcessPool } from "../lib/ChildProcessPool.js";
 import { fork } from "child_process";
 
+const MAX_WORKER_RSS_BYTES = 512 * 1024 * 1024;
+
 async function generateDocumentWorkerCall(
   payload: GenerateDocumentWorkerPayload,
   childProcessPool: ChildProcessPool,
@@ -29,7 +31,7 @@ async function generateDocumentWorkerCall(
 
     let rebuild = false;
     if (!data) rebuild = true;
-    if (data && data.heapUsed > 200 * 1024 * 1024) rebuild = true; // if its more than 200mb rebuild
+    if (data && data.rss > MAX_WORKER_RSS_BYTES) rebuild = true;
 
     childProcessPool.release(childProcess, rebuild);
   });
@@ -63,6 +65,7 @@ export async function generateCell(
     path.join(import.meta.dirname, "generateDocumentWorker.js")
   ), 1);
 
+  try {
   const files: string[] = [];
 
   const newName = crypto.randomUUID();
@@ -210,6 +213,9 @@ export async function generateCell(
       children: [lod2Tile],
     },
     files,
-    heapUsed: process.memoryUsage().heapUsed,
+    rss: process.memoryUsage().rss,
   };
+  } finally {
+    childProcessPool.destroyAll();
+  }
 }

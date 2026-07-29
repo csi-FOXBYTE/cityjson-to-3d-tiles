@@ -15,6 +15,7 @@ COPY src ./src
 COPY docker/job-runner.ts ./docker/job-runner.ts
 
 RUN corepack enable \
+    && corepack prepare pnpm@10.34.5 --activate \
     && pnpm install --frozen-lockfile \
     && pnpm rebuild sqlite3 sharp esbuild better-sqlite3 cpu-features protobufjs \
     && pnpm run build \

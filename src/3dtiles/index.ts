@@ -11,6 +11,8 @@ import { fork } from "child_process";
 import type { WorkerWorkPayload, WorkerWorkReturnType } from "./worker.js";
 import { ChildProcessPool } from "../lib/ChildProcessPool.js";
 
+const MAX_WORKER_RSS_BYTES = 512 * 1024 * 1024;
+
 export async function generate3DTilesFromTileDatabase(
   dbFilePath: string,
   outputFolder: string,
@@ -121,6 +123,7 @@ export async function generate3DTilesFromTileDatabase(
     silent: true,
   }), threadCount);
 
+  try {
   await PromisePool.withConcurrency(threadCount)
     .for(grid.cells)
     .process(async (cell) => {
@@ -141,7 +144,7 @@ export async function generate3DTilesFromTileDatabase(
 
           let rebuild = false;
           if (!data) rebuild = true;
-          if (data && data.heapUsed > 200 * 1024 * 1024) rebuild = true; // if its more than 200mb rebuild
+          if (data && data.rss > MAX_WORKER_RSS_BYTES) rebuild = true;
 
           workerPool.release(worker, rebuild);
         });
@@ -239,6 +242,9 @@ export async function generate3DTilesFromTileDatabase(
       4,
     ),
   );
+  } finally {
+    workerPool.destroyAll();
+  }
 
   console.timeEnd("RUN TOOK");
 }
