@@ -1,4 +1,5 @@
 import { Matrix4Tuple } from "three";
+import type { SemanticSurfaceColorDef } from "./color.js";
 
 export type WorkerPayloads = WorkerInitPayload | WorkerWorkPayload | WorkerTerminatePayload;
 
@@ -9,6 +10,7 @@ export type WorkerInitPayload = {
     src: string; // source srs
     dbFile: string;
     filePath: string;
+    semanticSurfaceColors: SemanticSurfaceColorDef;
   };
 };
 

@@ -18,6 +18,7 @@ import {
 import { queue } from "async";
 import { WorkerPool } from "./workerPool.js";
 import { existsSync } from "fs";
+import type { SemanticSurfaceColorDef } from "./color.js";
 
 Logger.DEFAULT_INSTANCE = new Logger(Logger.Verbosity.SILENT);
 
@@ -56,9 +57,15 @@ export async function generateTileDatabaseFromCityJSON(
      * @default "+proj=geocent +datum=WGS84 +units=m +no_defs +type=crs"
      */
     destSRS?: string;
+    /**
+     * Colors for untextured semantic surfaces, keyed by CityJSON semantic
+     * surface type. The "*" key may be used as a fallback.
+     * @default {}
+     */
+    semanticSurfaceColors?: SemanticSurfaceColorDef;
   } = {}
 ) {
-  const { threadCount = 4 } = opts;
+  const { threadCount = 4, semanticSurfaceColors = {} } = opts;
 
   if (!existsSync(inputFolder)) {
     throw new Error(`FATAL: no such directory: ${inputFolder}`);
@@ -148,6 +155,7 @@ export async function generateTileDatabaseFromCityJSON(
           dest: "+proj=geocent +datum=WGS84 +units=m +no_defs +type=crs",
           folderPath,
           appearance,
+          semanticSurfaceColors,
           noTransform: true,
           dbInstance: dbInstance,
         });
@@ -177,6 +185,7 @@ export async function generateTileDatabaseFromCityJSON(
         src: srcSrsProj4,
         dbFile: dbFilePath,
         filePath: inputFile,
+        semanticSurfaceColors,
       },
     } satisfies WorkerInitPayload);
 

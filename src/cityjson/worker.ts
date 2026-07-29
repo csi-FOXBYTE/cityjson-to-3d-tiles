@@ -5,6 +5,7 @@ import type { WorkerPayloads } from "./workerPayload.js";
 import { buildGeometry } from "./buildGeometry.js";
 import { createDatabase } from "../database/index.js";
 import { Database } from "sqlite";
+import type { SemanticSurfaceColorDef } from "./color.js";
 
 Logger.DEFAULT_INSTANCE = new Logger(Logger.Verbosity.SILENT);
 
@@ -15,6 +16,7 @@ if (!parentPort) throw new Error("Is not being called in a worker context!");
 let cityJson: CityJSONV201;
 let src = "";
 let dbInstance: Database | null = null;
+let semanticSurfaceColors: SemanticSurfaceColorDef = {};
 
 parentPort.on("message", async (value: WorkerPayloads) => {
   try {
@@ -22,6 +24,7 @@ parentPort.on("message", async (value: WorkerPayloads) => {
       case "init":
         cityJson = JSON.parse(value.data.cityJsonRaw) as CityJSONV201;
         src = value.data.src;
+        semanticSurfaceColors = value.data.semanticSurfaceColors;
         dbInstance = await createDatabase(value.data.dbFile);
         parentPort?.postMessage(null);
         break;
@@ -37,6 +40,7 @@ parentPort.on("message", async (value: WorkerPayloads) => {
             dest: value.data.dest ?? DEFAULT_DEST_SRS,
             folderPath: value.data.folderPath,
             appearance: value.data.appearance,
+            semanticSurfaceColors,
             noTransform: false,
             dbInstance,
           });

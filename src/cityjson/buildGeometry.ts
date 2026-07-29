@@ -19,7 +19,10 @@ import { buildGeometryInstance } from "./buildGeometryInstance.js";
 import { getBBoxesFromMeshes, triangulate3DPolygon } from "./helpers.js";
 import type { CityJSONV201 } from "./schemas/cityjson.js";
 import { WorkerWorkReturnType } from "./workerPayload.js";
-import { getColorFromSemanticSurface } from "./color.js";
+import {
+  getColorFromSemanticSurface,
+  type SemanticSurfaceColorDef,
+} from "./color.js";
 
 export async function buildGeometry({
   appearance,
@@ -30,6 +33,7 @@ export async function buildGeometry({
   id,
   src,
   vertices,
+  semanticSurfaceColors,
   noTransform,
   dbInstance,
 }: {
@@ -41,6 +45,7 @@ export async function buildGeometry({
   dest: string;
   folderPath: string;
   appearance: string;
+  semanticSurfaceColors: SemanticSurfaceColorDef;
   noTransform?: boolean;
   dbInstance: Database;
 }): Promise<WorkerWorkReturnType> {
@@ -249,7 +254,12 @@ export async function buildGeometry({
           const vertexCount = position.length / 3;
           const colors = new Float32Array(vertexCount * 3);
 
-          const { r, g, b } = getColorFromSemanticSurface(semanticSurfaceType ?? "", {});
+          const { r, g, b } = textureId === null
+            ? getColorFromSemanticSurface(
+              semanticSurfaceType ?? "",
+              semanticSurfaceColors,
+            )
+            : getColorFromSemanticSurface("", {});
 
           for (let k = 0; k < vertexCount; k++) {
             colors[k * 3 + 0] = r;

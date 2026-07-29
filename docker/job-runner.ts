@@ -2,6 +2,7 @@ import { mkdir, rm } from "node:fs/promises";
 import {
   generate3DTilesFromTileDatabase,
   generateTileDatabaseFromCityJSON,
+  parseSemanticSurfaceColorDef,
 } from "../dist/index.js";
 
 function parseBoolean(value: string | undefined, fallback: boolean): boolean {
@@ -44,6 +45,19 @@ function optionalString(value: string | undefined): string | undefined {
   if (!value) return undefined;
   const trimmed = value.trim();
   return trimmed.length > 0 ? trimmed : undefined;
+}
+
+function parseSemanticSurfaceColors(value: string | undefined) {
+  const raw = optionalString(value);
+  if (!raw) return undefined;
+
+  try {
+    return parseSemanticSurfaceColorDef(JSON.parse(raw));
+  } catch (error) {
+    throw new Error(
+      `Invalid SEMANTIC_SURFACE_COLORS: ${getErrorMessage(error)}`,
+    );
+  }
 }
 
 function getErrorMessage(error: unknown): string {
@@ -96,6 +110,9 @@ async function main() {
   const simplifyAddresses = parseBoolean(process.env.SIMPLIFY_ADDRESSES, false);
   const srcSRS = optionalString(process.env.SRC_SRS);
   const destSRS = optionalString(process.env.DEST_SRS);
+  const semanticSurfaceColors = parseSemanticSurfaceColors(
+    process.env.SEMANTIC_SURFACE_COLORS,
+  );
 
   // Keep temporary DB work on container-local storage for faster SQLite I/O.
   await rm(internalDbDir, { recursive: true, force: true });
@@ -122,6 +139,7 @@ async function main() {
       threadCount,
       srcSRS,
       destSRS,
+      semanticSurfaceColors,
     },
   );
 

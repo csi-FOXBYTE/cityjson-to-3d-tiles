@@ -179,6 +179,7 @@ APPEARANCE=rgbTexture
 THREAD_COUNT=4
 HAS_ALPHA_ENABLED=true
 SIMPLIFY_ADDRESSES=false
+SEMANTIC_SURFACE_COLORS=<JSON object>
 SKIP_CONVERSION=false
 INPUT_DIR=/work
 OUTPUT_DIR=/work/tiles
@@ -186,6 +187,15 @@ INTERNAL_DB_DIR=/tmp/cityjson-to-3d-tiles
 SRC_SRS=<proj string>
 DEST_SRS=<proj string>
 SHOW_STACK_TRACE=false
+```
+
+`SEMANTIC_SURFACE_COLORS` optionally assigns colors to untextured CityJSON
+semantic surfaces. Values may be normalized RGB arrays, normalized RGB objects,
+or CSS colors. Use `"*"` as a fallback for semantic surface types that are not
+listed. When the variable is omitted, untextured surfaces remain white.
+
+```text
+SEMANTIC_SURFACE_COLORS={"RoofSurface":[1,0,0],"WallSurface":"#cccccc","*":{"r":0.9,"g":0.9,"b":0.9}}
 ```
 
 Find Proj4 strings:
