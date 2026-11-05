@@ -145,11 +145,23 @@ The repository provides a Docker-based job runner.
 
 What it does:
 
-- Runs `citygml-tools to-cityjson -o cityjson .` in `/work` (skippable via `SKIP_CONVERSION`)
-- Converts CityJSON files from `INPUT_DIR` (default: `/work`)
+- Converts CityJSON files (`**/*.json`) from `INPUT_DIR` (default: `/work`)
 - Creates the temporary SQLite DB in container-local storage (`/tmp`) for better performance on Windows mounts
 - Writes final 3D Tiles to `OUTPUT_DIR` (default: `/work/tiles`)
 - Runs as the unprivileged `node` user (uid/gid 1000); the mounted folder must be writable for it, or pass `--user <uid>:<gid>` matching the folder's owner
+
+The image reads CityJSON only. Since 0.0.26 it no longer contains citygml-tools
+(and Java) and does not convert CityGML. Convert CityGML to CityJSON first, for
+example with the [citygml-tools image](https://github.com/csi-FOXBYTE/citygml-tools-docker):
+
+```bash
+docker run --rm --network none --user "$(id -u):$(id -g)" -v "$(pwd):/work" \
+  ghcr.io/csi-foxbyte/citygml-tools-docker:v2.4.1 to-cityjson /work --output /work/cityjson
+```
+
+Then run this image with `INPUT_DIR=/work/cityjson`. The job stops with an
+error (exit code 2) if `SKIP_CONVERSION` is set to anything other than `true`,
+or if `INPUT_DIR` contains CityGML (`*.gml`) but no CityJSON files.
 
 ### Build Image
 
@@ -181,7 +193,6 @@ THREAD_COUNT=4
 HAS_ALPHA_ENABLED=true
 SIMPLIFY_ADDRESSES=false
 SEMANTIC_SURFACE_COLORS=<JSON object>
-SKIP_CONVERSION=false
 INPUT_DIR=/work
 OUTPUT_DIR=/work/tiles
 INTERNAL_DB_DIR=/tmp/cityjson-to-3d-tiles
@@ -189,6 +200,10 @@ SRC_SRS=<proj string>
 DEST_SRS=<proj string>
 SHOW_STACK_TRACE=false
 ```
+
+`SKIP_CONVERSION` is only accepted for compatibility with callers of earlier
+versions: leave it unset or set it to `true`; any other value stops the job,
+as there is no CityGML conversion to run.
 
 `SEMANTIC_SURFACE_COLORS` optionally assigns colors to untextured CityJSON
 semantic surfaces. Values may be normalized RGB arrays, normalized RGB objects,
@@ -224,7 +239,9 @@ An example DAG is available in:
 
 `examples/airflow/cityjson_to_3d_tiles_dag.py`
 
-It uses `DockerOperator`, runs the GHCR image, and mounts one host folder to `/work`.
+It uses two `DockerOperator` tasks that mount the same host folder to `/work` and run without network:
+first `ghcr.io/csi-foxbyte/citygml-tools-docker:v2.4.1` converts the CityGML files to `/work/cityjson`,
+then this image writes the 3D Tiles to `/work/tiles`.
 
 <a id="building-from-source" />
 
