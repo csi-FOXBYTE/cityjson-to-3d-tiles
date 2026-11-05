@@ -49,5 +49,7 @@ with DAG(
         # Host folder must contain input files and will receive /work/cityjson and /work/tiles.
         volumes=[f"{WORK_DIR_ON_HOST}:/work"],
         environment=container_env,
+        # Run as the worker's uid:gid so the container can write to the host folder.
+        user=f"{os.getuid()}:{os.getgid()}",
         docker_url=os.getenv("DOCKER_HOST", "unix://var/run/docker.sock"),
     )
