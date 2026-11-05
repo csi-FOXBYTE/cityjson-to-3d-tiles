@@ -149,6 +149,7 @@ What it does:
 - Converts CityJSON files from `INPUT_DIR` (default: `/work`)
 - Creates the temporary SQLite DB in container-local storage (`/tmp`) for better performance on Windows mounts
 - Writes final 3D Tiles to `OUTPUT_DIR` (default: `/work/tiles`)
+- Runs as the unprivileged `node` user (uid/gid 1000); the mounted folder must be writable for it, or pass `--user <uid>:<gid>` matching the folder's owner
 
 ### Build Image
 
@@ -169,7 +170,7 @@ docker run --rm -v "${PWD}:/work" cityjson-to-3d-tiles
 Run this from your data folder:
 
 ```bash
-docker run --rm -v "$(pwd):/work" cityjson-to-3d-tiles
+docker run --rm --user "$(id -u):$(id -g)" -v "$(pwd):/work" cityjson-to-3d-tiles
 ```
 
 ### Optional Environment Variables
@@ -212,7 +213,7 @@ docker run --rm -v "${PWD}:/work" -e THREAD_COUNT=8 -e APPEARANCE=rgbTexture cit
 Example (Linux):
 
 ```bash
-docker run --rm -v "$(pwd):/work" -e THREAD_COUNT=8 -e APPEARANCE=rgbTexture cityjson-to-3d-tiles
+docker run --rm --user "$(id -u):$(id -g)" -v "$(pwd):/work" -e THREAD_COUNT=8 -e APPEARANCE=rgbTexture cityjson-to-3d-tiles
 ```
 
 <a id="airflow-dag-example" />

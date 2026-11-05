@@ -1,5 +1,5 @@
 import { Document, Primitive, Texture } from "@gltf-transform/core";
-import sharp from "sharp";
+import sharp, { type OverlayOptions } from "sharp";
 import {
   MaxRectsPacker,
   Rectangle,
@@ -118,7 +118,7 @@ export async function mergeTextures(
   let collectedTextures: { texture: Texture; name: string }[] = [];
 
   for (const bin of packer.bins) {
-    const composited: sharp.OverlayOptions[] = [];
+    const composited: OverlayOptions[] = [];
 
     for (const rect of bin.rects) {
       const img = sharp(rect.getImageData()).resize({
