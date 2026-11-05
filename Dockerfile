@@ -27,15 +27,23 @@ RUN corepack enable \
 # Fetches citygml-tools (used when SKIP_CONVERSION is not "true") at a pinned,
 # checksum-verified release instead of whatever "latest" is at build time.
 FROM ${NODE_BASE_IMAGE} AS citygml-tools
-ARG CITYGML_TOOLS_VERSION=2.5.0
+# 2.4.1 like the pipeline's citygml-tools image: 2.5.0 renames the CityJSON
+# address keys (ThoroughfareName -> thoroughfareName), which downstream readers
+# of the address attributes do not expect.
+ARG CITYGML_TOOLS_VERSION=2.4.1
 # SHA-256 of the release zip; must be updated together with CITYGML_TOOLS_VERSION.
-ARG CITYGML_TOOLS_SHA256=bb2949fbc6c3ec44ec85c25a0bcdfe9accde9cbdb9e26ec773889779694710b1
-# Replace the bundled Jackson 2.21.2 with the 2.21.7 patch release, which fixes
-# known CVEs in jackson-core/-databind. Drop this once citygml-tools ships >= 2.21.7.
-ARG JACKSON_BUNDLED=2.21.2
-ARG JACKSON_VERSION=2.21.7
-ARG JACKSON_CORE_SHA256=8c5623b98f32d5f7e1287ff61ed50e08ab7b11381e991fff89327faabba42261
-ARG JACKSON_DATABIND_SHA256=1290c2795e93e8a6861a6c4d9ff0d844d32f5ea178362cb2721edf5561e828b1
+ARG CITYGML_TOOLS_SHA256=89c41ecb602a3f4a628c646ac3eb5aeffdc4c62ab07f1b20f1bd2efb65561806
+# Replace the bundled Jackson 2.20.1 with the 2.21.8 patch release, which fixes
+# known CVEs in jackson-core/-databind (there is no fixed 2.20.x release), and
+# raise jackson-annotations to the matching 2.21 line. Drop this once
+# citygml-tools ships Jackson >= 2.21.8.
+ARG JACKSON_BUNDLED=2.20.1
+ARG JACKSON_VERSION=2.21.8
+ARG JACKSON_ANNOTATIONS_BUNDLED=2.20
+ARG JACKSON_ANNOTATIONS_VERSION=2.21
+ARG JACKSON_ANNOTATIONS_SHA256=53ca085f4a150f703f49e1aabd935bd03b43e1ea3d55d135438292af22cef56b
+ARG JACKSON_CORE_SHA256=604ef7765013daf5cde192e40bc4c8412c4ca93f4aaf7bf8e9a62fad1e1026bb
+ARG JACKSON_DATABIND_SHA256=ad77f2285717e2f34c319d988b7c85783a47d0b33f33a501d1fcbf196e61bbaa
 
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
@@ -52,16 +60,19 @@ RUN set -eux; \
     mv "/opt/citygml-tools-${CITYGML_TOOLS_VERSION}" /opt/citygml-tools; \
     rm -f /tmp/citygml-tools.zip; \
     cd /opt/citygml-tools/lib; \
-    for spec in "core:${JACKSON_CORE_SHA256}" "databind:${JACKSON_DATABIND_SHA256}"; do \
-      artifact="jackson-${spec%%:*}"; \
-      test -f "${artifact}-${JACKSON_BUNDLED}.jar"; \
-      curl -fsSL -o "${artifact}-${JACKSON_VERSION}.jar" \
-        "https://repo1.maven.org/maven2/com/fasterxml/jackson/core/${artifact}/${JACKSON_VERSION}/${artifact}-${JACKSON_VERSION}.jar"; \
-      echo "${spec#*:}  ${artifact}-${JACKSON_VERSION}.jar" | sha256sum -c -; \
-      rm "${artifact}-${JACKSON_BUNDLED}.jar"; \
-      sed -i "s/${artifact}-${JACKSON_BUNDLED}\.jar/${artifact}-${JACKSON_VERSION}.jar/g" /opt/citygml-tools/citygml-tools; \
+    for spec in \
+      "jackson-annotations ${JACKSON_ANNOTATIONS_BUNDLED} ${JACKSON_ANNOTATIONS_VERSION} ${JACKSON_ANNOTATIONS_SHA256}" \
+      "jackson-core ${JACKSON_BUNDLED} ${JACKSON_VERSION} ${JACKSON_CORE_SHA256}" \
+      "jackson-databind ${JACKSON_BUNDLED} ${JACKSON_VERSION} ${JACKSON_DATABIND_SHA256}"; do \
+      set -- $spec; \
+      test -f "$1-$2.jar"; \
+      curl -fsSL -o "$1-$3.jar" \
+        "https://repo1.maven.org/maven2/com/fasterxml/jackson/core/$1/$3/$1-$3.jar"; \
+      echo "$4  $1-$3.jar" | sha256sum -c -; \
+      rm "$1-$2.jar"; \
+      sed -i "s/$1-$2\.jar/$1-$3.jar/g" /opt/citygml-tools/citygml-tools; \
+      if grep -q "$1-$2\.jar" /opt/citygml-tools/citygml-tools; then exit 1; fi; \
     done; \
-    ! grep -q "jackson-[a-z]*-${JACKSON_BUNDLED}" /opt/citygml-tools/citygml-tools; \
     echo "v${CITYGML_TOOLS_VERSION}" > /opt/citygml-tools.version
 
 FROM ${NODE_BASE_IMAGE} AS runtime
